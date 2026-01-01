@@ -51,9 +51,47 @@
   localStorage.setItem('userHash', userHash);
 
   // -------------------------------
+  // AR REDIRECT LINKS
+  // -------------------------------
+  const myWebARLink = "https://mywebar.com/p/Project_2_soqi7kpa9d"; 
+  const iosUSDZ = "https://ahmad-shoukat-ali.github.io/ar-hosting/fishfinal.usdz"; 
+  const androidGLB = "https://ahmad-shoukat-ali.github.io/ar-hosting/fishfinal.glb"; 
+
+  function isIOS() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+  }
+
+  function isAndroid() {
+    return /Android/.test(navigator.userAgent);
+  }
+
+  function launchARRedirect() {
+    if (isIOS()) {
+      // Open Quick Look for iOS
+      const link = document.createElement('a');
+      link.rel = 'ar';
+      link.href = iosUSDZ;
+      document.body.appendChild(link);
+      link.click();
+    } else if (isAndroid()) {
+      // Open Scene Viewer for Android
+      const sceneViewerUrl = `intent://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(androidGLB)}#Intent;scheme=https;package=com.google.ar.core;action=android.intent.action.VIEW;end;`;
+      window.location.href = sceneViewerUrl;
+
+      // Fallback to MyWebAR if Scene Viewer fails
+      setTimeout(() => {
+        window.location.href = myWebARLink;
+      }, 1500);
+    } else {
+      // Other devices → MyWebAR fallback
+      window.location.href = myWebARLink;
+    }
+  }
+
+  // -------------------------------
   // DEVICE & ENVIRONMENT DETECTION
   // -------------------------------
-  const deviceType = /iPhone|iPad|iPod/i.test(navigator.userAgent) ? 'iOS' : 'Android/Other';
+  const deviceType = isIOS() ? 'iOS' : (isAndroid() ? 'Android' : 'Other');
   const browser = navigator.userAgent;
 
   function isARSupported() {
@@ -61,7 +99,7 @@
   }
 
   // -------------------------------
-  // ANALYTICS EVENT FUNCTION
+  // ANALYTICS EVENTS
   // -------------------------------
   function sendEvent(eventName, eventParams = {}) {
     gtag('event', eventName, {
@@ -80,11 +118,11 @@
   }
 
   // -------------------------------
-  // FAULT & FALLBACK HANDLING
+  // Fallback & AR Launch
   // -------------------------------
   if (!isARSupported()) {
     sendEvent('ar_fallback', { reason: 'AR not supported' });
-    window.location.href = "https://mywebar.com/p/Project_2_soqi7kpa9d"; // Redirect to MyWebAR fallback
+    launchARRedirect(); // Redirect to device-specific AR or MyWebAR
   } else {
     sendEvent('qr_scan', {});
     sendEvent('ar_loaded', {});
@@ -121,7 +159,7 @@
   });
 
   // -------------------------------
-  // SCAN CREDIT TRACKING (Placeholder)
+  // SCAN CREDIT TRACKING
   // -------------------------------
   function useScanCredit() {
     sendEvent('scan_credit_used', { count: 1 });
