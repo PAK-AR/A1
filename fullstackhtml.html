@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PAK-AR Experience</title>
+
+  <!-- A-Frame for WebAR -->
+  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
+
+  <!-- GA4 / Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=GA_MEASUREMENT_ID"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'GA_MEASUREMENT_ID'); // Replace with your GA4 ID
+  </script>
+
+  <style>
+    body, html { margin:0; padding:0; overflow:hidden; height:100%; width:100%; }
+  </style>
+</head>
+<body>
+
+<!-- AR Scene -->
+<a-scene embedded arjs='trackingMethod: best;'>
+  <a-marker preset="hiro">
+    <a-entity
+      gltf-model="url(https://pak-ar.github.io/A1/fishfinal.glb)"
+      scale="0.5 0.5 0.5"
+      rotation="0 0 0"
+      position="0 0 0"
+    ></a-entity>
+  </a-marker>
+  <a-entity camera></a-entity>
+</a-scene>
+
+<script>
+  // -------------------------------
+  // CONFIGURATION VARIABLES
+  // -------------------------------
+  const clientId = "CLIENT_ID";
+  const productId = "PRODUCT_ID";
+  const qrId = "QR_ID";
+  const campaignName = "CAMPAIGN_NAME";
+  const locationName = "LOCATION_NAME";
+  let sessionId = "session_" + Date.now();
+  let userHash = localStorage.getItem('userHash') || ("user_" + Math.floor(Math.random()*1000000));
+  localStorage.setItem('userHash', userHash);
+
+  // -------------------------------
+  // DEVICE & ENVIRONMENT DETECTION
+  // -------------------------------
+  const deviceType = /iPhone|iPad|iPod/i.test(navigator.userAgent) ? 'iOS' : 'Android/Other';
+  const browser = navigator.userAgent;
+
+  function isARSupported() {
+    return (navigator.xr && navigator.xr.isSessionSupported) || window.AFRAME;
+  }
+
+  // -------------------------------
+  // ANALYTICS EVENT FUNCTION
+  // -------------------------------
+  function sendEvent(eventName, eventParams = {}) {
+    gtag('event', eventName, {
+      client_id: clientId,
+      product_id: productId,
+      qr_id: qrId,
+      campaign: campaignName,
+      location: locationName,
+      session_id: sessionId,
+      user_hash: userHash,
+      device_type: deviceType,
+      browser: browser,
+      timestamp: Date.now(),
+      ...eventParams
+    });
+  }
+
+  // -------------------------------
+  // FAULT & FALLBACK HANDLING
+  // -------------------------------
+  if (!isARSupported()) {
+    sendEvent('ar_fallback', { reason: 'AR not supported' });
+    window.location.href = "https://mywebar.com/p/Project_2_soqi7kpa9d"; // Redirect to MyWebAR fallback
+  } else {
+    sendEvent('qr_scan', {});
+    sendEvent('ar_loaded', {});
+  }
+
+  // -------------------------------
+  // TRACK VIEW DURATION
+  // -------------------------------
+  let startTime = Date.now();
+  window.addEventListener('beforeunload', () => {
+    let duration = Math.floor((Date.now() - startTime)/1000);
+    sendEvent('ar_view_duration', { duration_seconds: duration });
+  });
+
+  // -------------------------------
+  // TRACK MODEL INTERACTIONS
+  // -------------------------------
+  const model = document.querySelector('a-entity[gltf-model]');
+  if(model) {
+    model.addEventListener('model-rotated', () => sendEvent('model_rotate'));
+    model.addEventListener('model-zoomed', () => sendEvent('model_zoom'));
+  }
+
+  // -------------------------------
+  // ANTI-FRAUD / FAIR USE
+  // -------------------------------
+  let reloadCount = 0;
+  window.addEventListener('load', () => {
+    reloadCount++;
+    if(reloadCount > 10) {
+      sendEvent('fraud_alert', { reason: 'Too many reloads' });
+      alert("Suspicious activity detected. Please contact support.");
+    }
+  });
+
+  // -------------------------------
+  // SCAN CREDIT TRACKING (Placeholder)
+  // -------------------------------
+  function useScanCredit() {
+    sendEvent('scan_credit_used', { count: 1 });
+  }
+</script>
+
+</body>
+</html>
