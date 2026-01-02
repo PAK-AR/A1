@@ -112,7 +112,7 @@
         }
 
         // Check AR support
-        function checkARSupport(device) {
+        async function checkARSupport(device) {
             if (device.isIOS) {
                 // iOS devices with iOS 12+ support Quick Look
                 return {
@@ -121,9 +121,12 @@
                     url: CONFIG.iosModelUrl
                 };
             } else if (device.isAndroid) {
-                // Check for Scene Viewer support (Android 7.0+ with ARCore)
-                const androidVersion = parseFloat(device.userAgent.match(/android\s([0-9\.]*)/)?.[1] || '0');
-                if (androidVersion >= 7.0) {
+                // For Android, we'll try Scene Viewer but with immediate fallback
+                // Since we can't reliably detect ARCore support, we'll use web fallback
+                // You can enable Scene Viewer attempt by setting this to true
+                const trySceneViewer = false; // Set to true if you want to attempt native AR
+                
+                if (trySceneViewer) {
                     return {
                         supported: true,
                         method: 'sceneviewer',
@@ -156,9 +159,9 @@
         }
 
         // Launch AR experience
-        function launchAR() {
+        async function launchAR() {
             const device = detectDevice();
-            const arSupport = checkARSupport(device);
+            const arSupport = await checkARSupport(device);
 
             // Track device info
             gtag('event', 'device_detected', {
@@ -170,42 +173,21 @@
             });
 
             try {
-                if (device.isDesktop) {
-                    // Desktop - redirect to web AR
-                    gtag('event', 'ar_launch', {
-                        method: 'web_desktop',
-                        session_duration: Date.now() - sessionStart
-                    });
-                    window.location.href = CONFIG.webArFallbackUrl;
-                } else if (arSupport.supported) {
-                    // Mobile with AR support
-                    gtag('event', 'ar_launch', {
-                        method: arSupport.method,
-                        session_duration: Date.now() - sessionStart
-                    });
-                    
-                    if (arSupport.method === 'quicklook') {
-                        // iOS Quick Look
-                        window.location.href = arSupport.url;
-                    } else if (arSupport.method === 'sceneviewer') {
-                        // Android Scene Viewer
-                        window.location.href = arSupport.url;
-                    }
-                } else {
-                    // Fallback to web AR
-                    gtag('event', 'ar_launch', {
-                        method: 'web_fallback',
-                        session_duration: Date.now() - sessionStart
-                    });
-                    window.location.href = CONFIG.webArFallbackUrl;
-                }
+                // Track launch
+                gtag('event', 'ar_launch', {
+                    method: arSupport.method,
+                    session_duration: Date.now() - sessionStart
+                });
 
-                // If still on page after 3 seconds, show error
+                // Redirect immediately based on device
+                window.location.href = arSupport.url;
+
+                // If still on page after 2 seconds, show error
                 setTimeout(() => {
                     if (document.visibilityState === 'visible') {
-                        showError('Unable to launch AR experience. Please ensure you have the latest version of your browser or try the web viewer.');
+                        showError('Unable to launch AR experience. Please check your internet connection and try again.');
                     }
-                }, 3000);
+                }, 2000);
 
             } catch (error) {
                 showError('An error occurred while launching AR: ' + error.message);
