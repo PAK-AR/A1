@@ -12,7 +12,7 @@
             align-items: center;
             min-height: 100vh;
             margin: 0;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #029390;
             color: white;
         }
         .container {
@@ -42,30 +42,6 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        .choice-container {
-            background: rgba(255,255,255,0.1);
-            padding: 30px;
-            border-radius: 15px;
-            margin-top: 20px;
-        }
-        .choice-btn {
-            display: block;
-            width: 100%;
-            padding: 15px;
-            margin: 10px 0;
-            font-size: 1.1em;
-            font-weight: bold;
-            border: 2px solid white;
-            border-radius: 10px;
-            background: rgba(255,255,255,0.2);
-            color: white;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        .choice-btn:hover {
-            background: rgba(255,255,255,0.3);
-            transform: scale(1.05);
-        }
         .error {
             background: rgba(255,255,255,0.1);
             padding: 20px;
@@ -80,30 +56,8 @@
 <body>
     <div class="container">
         <div class="logo">PAK-AR</div>
-        <div id="loading-screen">
-            <div class="loading">Preparing your AR experience...</div>
-            <div class="spinner"></div>
-        </div>
-        
-        <div id="choice-screen" style="display: none;">
-            <div class="choice-container">
-                <h2>Choose Your AR Experience</h2>
-                <p>We detected you're on Android</p>
-                <button class="choice-btn" id="native-ar-btn">
-                    🚀 Try Native AR
-                    <div style="font-size: 0.8em; font-weight: normal; margin-top: 5px;">
-                        For ARCore-enabled devices
-                    </div>
-                </button>
-                <button class="choice-btn" id="web-ar-btn">
-                    🌐 Use Web AR
-                    <div style="font-size: 0.8em; font-weight: normal; margin-top: 5px;">
-                        Works on all devices
-                    </div>
-                </button>
-            </div>
-        </div>
-        
+        <div class="loading">Preparing your AR experience...</div>
+        <div class="spinner"></div>
         <div id="error-message" class="error" style="display: none;">
             <h2>Unable to Load AR</h2>
             <p id="error-text"></p>
@@ -122,11 +76,9 @@
     <script>
         // Configuration - Replace these URLs with your actual links
         const CONFIG = {
-            iosModelUrl: 'YOUR_USDZ_MODEL_URL_HERE', // .usdz file for iOS Quick Look
-            androidModelUrl: 'https://pak-ar.github.io/A1/fishfinal.glb', // .glb or .gltf for Scene Viewer
+            iosModelUrl: 'https://pak-ar.github.io/A1/fishfinal.usdz', // .usdz file for iOS Quick Look
             webArFallbackUrl: 'https://mywebar.com/p/Project_2_soqi7kpa9d', // Web-based AR viewer
-            productName: 'Fresh Fish', // For tracking
-            autoDetectAndroid: false // Set to true to skip choice screen and auto-detect
+            productName: 'Fresh Fish' // For tracking
         };
 
         // Session tracking
@@ -160,8 +112,8 @@
 
         // Show error message
         function showError(message) {
-            document.getElementById('loading-screen').style.display = 'none';
-            document.getElementById('choice-screen').style.display = 'none';
+            document.querySelector('.loading').style.display = 'none';
+            document.querySelector('.spinner').style.display = 'none';
             const errorDiv = document.getElementById('error-message');
             const errorText = document.getElementById('error-text');
             errorText.textContent = message;
@@ -175,28 +127,7 @@
         }
 
         // Launch AR experience
-        function launchAR(method, url) {
-            gtag('event', 'ar_launch', {
-                method: method,
-                session_duration: Date.now() - sessionStart
-            });
-
-            try {
-                window.location.href = url;
-
-                // If still on page after 2 seconds, show error
-                setTimeout(() => {
-                    if (document.visibilityState === 'visible') {
-                        showError('Unable to launch AR. If using Native AR, your device may not support ARCore. Please try Web AR instead.');
-                    }
-                }, 2000);
-            } catch (error) {
-                showError('An error occurred: ' + error.message);
-            }
-        }
-
-        // Main logic
-        function init() {
+        function launchAR() {
             const device = detectDevice();
 
             // Track device info
@@ -206,32 +137,42 @@
                 is_desktop: device.isDesktop
             });
 
-            if (device.isIOS) {
-                // iOS - directly use Quick Look
-                launchAR('quicklook', CONFIG.iosModelUrl);
-            } else if (device.isAndroid) {
-                if (CONFIG.autoDetectAndroid) {
-                    // Auto-redirect to web AR (safest option)
-                    launchAR('web_android', CONFIG.webArFallbackUrl);
+            let method = '';
+            let url = '';
+
+            try {
+                if (device.isIOS) {
+                    // iOS - use Quick Look
+                    method = 'quicklook';
+                    url = CONFIG.iosModelUrl;
+                } else if (device.isAndroid) {
+                    // Android - use Web AR
+                    method = 'web_android';
+                    url = CONFIG.webArFallbackUrl;
                 } else {
-                    // Show choice screen for Android users
-                    document.getElementById('loading-screen').style.display = 'none';
-                    document.getElementById('choice-screen').style.display = 'block';
-
-                    // Native AR button
-                    document.getElementById('native-ar-btn').addEventListener('click', () => {
-                        const sceneViewerUrl = `intent://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(CONFIG.androidModelUrl)}&mode=ar_preferred#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;S.browser_fallback_url=${encodeURIComponent(CONFIG.webArFallbackUrl)};end;`;
-                        launchAR('sceneviewer', sceneViewerUrl);
-                    });
-
-                    // Web AR button
-                    document.getElementById('web-ar-btn').addEventListener('click', () => {
-                        launchAR('web_android_choice', CONFIG.webArFallbackUrl);
-                    });
+                    // Desktop - use Web AR
+                    method = 'web_desktop';
+                    url = CONFIG.webArFallbackUrl;
                 }
-            } else {
-                // Desktop or other devices - use web AR
-                launchAR('web_desktop', CONFIG.webArFallbackUrl);
+
+                // Track launch
+                gtag('event', 'ar_launch', {
+                    method: method,
+                    session_duration: Date.now() - sessionStart
+                });
+
+                // Redirect to AR experience
+                window.location.href = url;
+
+                // If still on page after 2 seconds, show error
+                setTimeout(() => {
+                    if (document.visibilityState === 'visible') {
+                        showError('Unable to launch AR experience. Please check your internet connection and try again.');
+                    }
+                }, 2000);
+
+            } catch (error) {
+                showError('An error occurred while launching AR: ' + error.message);
             }
         }
 
@@ -244,9 +185,9 @@
             });
         });
 
-        // Launch when page loads
+        // Launch AR when page loads
         window.addEventListener('load', () => {
-            setTimeout(init, 500);
+            setTimeout(launchAR, 500);
         });
     </script>
 </body>
