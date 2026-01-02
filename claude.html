@@ -79,7 +79,7 @@
             iosModelUrl: 'https://pak-ar.github.io/A1/fishfinal.usdz', // .usdz file for iOS Quick Look
             androidModelUrl: 'https://pak-ar.github.io/A1/fishfinal.glb', // .glb or .gltf for Scene Viewer
             webArFallbackUrl: 'https://mywebar.com/p/Project_2_soqi7kpa9d', // Web-based AR viewer
-            productName: 'Fresh Fish' // For tracking
+            productName: 'Product Name' // For tracking
         };
 
         // Session tracking
@@ -111,6 +111,42 @@
             };
         }
 
+        // Check Scene Viewer availability
+        function hasSceneViewer() {
+            // Scene Viewer requires Google app and Android 7.0+
+            const ua = navigator.userAgent.toLowerCase();
+            const androidVersion = parseFloat(ua.match(/android\s([0-9\.]*)/)?.[1] || '0');
+            return androidVersion >= 7.0;
+        }
+
+        // Check ARCore support
+        async function checkARCoreSupport() {
+            return new Promise((resolve) => {
+                // Check if WebXR is available (indicates AR capability)
+                if ('xr' in navigator) {
+                    navigator.xr.isSessionSupported('immersive-ar')
+                        .then(supported => resolve(supported))
+                        .catch(() => resolve(false));
+                } else {
+                    // Fallback: try to detect ARCore by checking for specific features
+                    const hasGyroscope = window.DeviceOrientationEvent !== undefined;
+                    const hasAccelerometer = window.DeviceMotionEvent !== undefined;
+                    
+                    // Additional check: try to access motion sensors
+                    if (hasGyroscope && hasAccelerometer) {
+                        // Device has required sensors, likely supports ARCore
+                        // But we can't be 100% sure, so we'll timeout quickly
+                        resolve(true);
+                    } else {
+                        resolve(false);
+                    }
+                }
+                
+                // Timeout after 1 second to avoid hanging
+                setTimeout(() => resolve(false), 1000);
+            });
+        }
+
         // Check AR support
         async function checkARSupport(device) {
             if (device.isIOS) {
@@ -121,20 +157,30 @@
                     url: CONFIG.iosModelUrl
                 };
             } else if (device.isAndroid) {
-                // For Android, we'll try Scene Viewer but with immediate fallback
-                // Since we can't reliably detect ARCore support, we'll use web fallback
-                // You can enable Scene Viewer attempt by setting this to true
-                const trySceneViewer = false; // Set to true if you want to attempt native AR
-                
-                if (trySceneViewer) {
-                    return {
-                        supported: true,
-                        method: 'sceneviewer',
-                        url: `intent://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(CONFIG.androidModelUrl)}&mode=ar_preferred#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;S.browser_fallback_url=${encodeURIComponent(CONFIG.webArFallbackUrl)};end;`
-                    };
+                // Step 1: Check if Scene Viewer is available
+                if (hasSceneViewer()) {
+                    // Step 2: Check ARCore support
+                    const hasARCore = await checkARCoreSupport();
+                    
+                    if (hasARCore) {
+                        // Device supports ARCore, use Scene Viewer
+                        return {
+                            supported: true,
+                            method: 'sceneviewer',
+                            url: `intent://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(CONFIG.androidModelUrl)}&mode=ar_preferred#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;S.browser_fallback_url=${encodeURIComponent(CONFIG.webArFallbackUrl)};end;`
+                        };
+                    }
                 }
+                
+                // No Scene Viewer or ARCore support, use web fallback
+                return {
+                    supported: false,
+                    method: 'web',
+                    url: CONFIG.webArFallbackUrl
+                };
             }
             
+            // Desktop or other devices
             return {
                 supported: false,
                 method: 'web',
@@ -169,7 +215,8 @@
                 is_android: device.isAndroid,
                 is_desktop: device.isDesktop,
                 ar_method: arSupport.method,
-                ar_supported: arSupport.supported
+                ar_supported: arSupport.supported,
+                has_scene_viewer: device.isAndroid ? hasSceneViewer() : false
             });
 
             try {
