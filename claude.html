@@ -68,17 +68,17 @@
     </div>
 
     <!-- Google Analytics 4 -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-GYWP3B344B"></script>
     <script>
         window.dataLayer = window.dataLayer || [];
         function gtag(){dataLayer.push(arguments);}
         gtag('js', new Date());
-        gtag('config', 'G-GYWP3B344B'); // Replace with your GA4 Measurement ID
+        gtag('config', 'G-GYWP3B344B');
     </script>
 
     <script>
         // Force clear cache and reload if needed
-        const CURRENT_VERSION = '1.12'; // Increment this when you update the code
+        const CURRENT_VERSION = '1.4'; // Increment this when you update the code
         const storedVersion = localStorage.getItem('pakar_version');
         
         if (storedVersion !== CURRENT_VERSION) {
@@ -100,7 +100,7 @@
         const CONFIG = {
             iosModelUrl: 'https://pak-ar.github.io/A1/fishfinal.usdz', // .usdz file for iOS Quick Look
             webArFallbackUrl: 'https://mywebar.com/p/Project_2_soqi7kpa9d', // Web-based AR viewer
-            productName: 'Fresh Fish' // For tracking
+            productName: 'Fish Model' // For tracking
         };
 
         // Session tracking
@@ -164,9 +164,27 @@
 
             try {
                 if (device.isIOS) {
-                    // iOS - use Quick Look
+                    // iOS - use Quick Look with AR parameter to skip preview
                     method = 'quicklook';
-                    url = CONFIG.iosModelUrl;
+                    url = CONFIG.iosModelUrl + '#allowsContentScaling=0';
+                    
+                    // Alternative: Create AR Quick Look link element
+                    const a = document.createElement('a');
+                    a.rel = 'ar';
+                    a.href = CONFIG.iosModelUrl;
+                    
+                    // Create img element for AR Quick Look (required for direct AR)
+                    const img = document.createElement('img');
+                    a.appendChild(img);
+                    document.body.appendChild(a);
+                    
+                    // Trigger click to open directly in AR
+                    a.click();
+                    
+                    // Clean up
+                    setTimeout(() => document.body.removeChild(a), 100);
+                    
+                    return; // Don't use regular window.location redirect
                 } else if (device.isAndroid) {
                     // Android - use Web AR
                     method = 'web_android';
@@ -177,11 +195,20 @@
                     url = CONFIG.webArFallbackUrl;
                 }
 
+                // Check if URL is configured
+                if (url.includes('YOUR_') || url === '') {
+                    showError('AR link not configured yet. Please contact support or check back later.');
+                    return;
+                }
+
                 // Track launch
                 gtag('event', 'ar_launch', {
                     method: method,
-                    session_duration: Date.now() - sessionStart
+                    session_duration: Date.now() - sessionStart,
+                    url: url
                 });
+
+                console.log('Launching AR with method:', method, 'URL:', url);
 
                 // Redirect to AR experience
                 window.location.href = url;
@@ -189,11 +216,12 @@
                 // If still on page after 2 seconds, show error
                 setTimeout(() => {
                     if (document.visibilityState === 'visible') {
-                        showError('Unable to launch AR experience. Please check your internet connection and try again.');
+                        showError('Unable to launch AR experience. URL: ' + url.substring(0, 50) + '... Please check if the link is valid.');
                     }
                 }, 2000);
 
             } catch (error) {
+                console.error('Launch error:', error);
                 showError('An error occurred while launching AR: ' + error.message);
             }
         }
