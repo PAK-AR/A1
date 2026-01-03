@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>PAK-AR - View in AR</title>
     <style>
         body {
@@ -70,10 +73,29 @@
         window.dataLayer = window.dataLayer || [];
         function gtag(){dataLayer.push(arguments);}
         gtag('js', new Date());
-        gtag('config', 'G-18C1ZEDQ2J'); // Replace with your GA4 Measurement ID
+        gtag('config', 'G-GYWP3B344B'); // Replace with your GA4 Measurement ID
     </script>
 
     <script>
+        // Force clear cache and reload if needed
+        const CURRENT_VERSION = '1.1'; // Increment this when you update the code
+        const storedVersion = localStorage.getItem('pakar_version');
+        
+        if (storedVersion !== CURRENT_VERSION) {
+            // Clear all caches
+            if ('caches' in window) {
+                caches.keys().then(names => {
+                    names.forEach(name => caches.delete(name));
+                });
+            }
+            localStorage.setItem('pakar_version', CURRENT_VERSION);
+            
+            // Force reload from server, not cache
+            if (storedVersion !== null) {
+                window.location.reload(true);
+            }
+        }
+
         // Configuration - Replace these URLs with your actual links
         const CONFIG = {
             iosModelUrl: 'https://pak-ar.github.io/A1/fishfinal.usdz', // .usdz file for iOS Quick Look
