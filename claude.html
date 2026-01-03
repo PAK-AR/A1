@@ -78,7 +78,7 @@
 
     <script>
         // Force clear cache and reload if needed
-        const CURRENT_VERSION = '2.0'; // Increment this when you update the code
+        const CURRENT_VERSION = '2.1'; // Increment this when you update the code
         const storedVersion = localStorage.getItem('pakar_version');
         
         if (storedVersion !== CURRENT_VERSION) {
@@ -214,12 +214,20 @@
 
             let method = '';
             let url = '';
+            let isNativeARSupported = false;
 
             try {
                 if (device.isIOS) {
                     // iOS - use Quick Look with AR parameter to skip preview
                     method = 'quicklook';
                     url = CONFIG.iosModelUrl + '#allowsContentScaling=0';
+                    isNativeARSupported = true;
+                    
+                    // Fire ar_supported event
+                    sendEvent('ar_supported', {
+                        platform: 'iOS',
+                        ar_method: 'quicklook'
+                    });
                     
                     // Alternative: Create AR Quick Look link element
                     const a = document.createElement('a');
@@ -231,9 +239,14 @@
                     a.appendChild(img);
                     document.body.appendChild(a);
                     
-                    // Fire ar_loaded event
+                    // Fire ar_loaded and model_loaded events
                     sendEvent('ar_loaded', {
                         ar_method: method
+                    });
+                    
+                    sendEvent('model_loaded', {
+                        ar_method: method,
+                        platform: 'iOS'
                     });
                     
                     // Trigger click to open directly in AR
@@ -244,13 +257,28 @@
                     
                     return; // Don't use regular window.location redirect
                 } else if (device.isAndroid) {
-                    // Android - use Web AR
+                    // Android - use Web AR (fallback)
                     method = 'web_android';
                     url = CONFIG.webArFallbackUrl;
+                    isNativeARSupported = false;
+                    
+                    // Fire ar_not_supported event
+                    sendEvent('ar_not_supported', {
+                        platform: 'Android',
+                        reason: 'Using web AR fallback'
+                    });
+                    
                 } else {
-                    // Desktop - use Web AR
+                    // Desktop - use Web AR (fallback)
                     method = 'web_desktop';
                     url = CONFIG.webArFallbackUrl;
+                    isNativeARSupported = false;
+                    
+                    // Fire ar_not_supported event
+                    sendEvent('ar_not_supported', {
+                        platform: 'Desktop',
+                        reason: 'Using web AR fallback'
+                    });
                 }
 
                 // Check if URL is configured
@@ -265,6 +293,13 @@
                 // Track launch and fire ar_loaded
                 sendEvent('ar_loaded', {
                     ar_method: method
+                });
+                
+                // Fire fallback_opened event for web AR users
+                sendEvent('fallback_opened', {
+                    ar_method: method,
+                    platform: device.deviceType,
+                    fallback_type: 'MyWebAR'
                 });
                 
                 // Fire scan_credit_used event
