@@ -78,7 +78,7 @@
 
     <script>
         // Force clear cache and reload if needed
-        const CURRENT_VERSION = '1.4'; // Increment this when you update the code
+        const CURRENT_VERSION = '2.0'; // Increment this when you update the code
         const storedVersion = localStorage.getItem('pakar_version');
         
         if (storedVersion !== CURRENT_VERSION) {
@@ -100,21 +100,48 @@
         const CONFIG = {
             iosModelUrl: 'https://pak-ar.github.io/A1/fishfinal.usdz', // .usdz file for iOS Quick Look
             webArFallbackUrl: 'https://mywebar.com/p/Project_2_soqi7kpa9d', // Web-based AR viewer
-            productName: 'Fish Model' // For tracking
+            productName: 'Fish Model', // For tracking
+            // GA4 Custom Parameters - Replace with your values
+            clientId: 'CLIENT_001', // Your internal client identifier
+            productId: 'FISH_001', // Product ID linked to AR model
+            qrId: 'QR_001', // Unique QR code identifier
+            campaign: 'Launch_Campaign', // Campaign name
+            location: 'Online_Store' // Optional branch or location info
         };
 
         // Session tracking
         const sessionStart = Date.now();
+        const sessionId = 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        
+        // User hash - unique ID stored in localStorage
+        let userHash = localStorage.getItem('pakar_user_hash');
+        if (!userHash) {
+            userHash = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('pakar_user_hash', userHash);
+        }
+        
+        // View count tracking
         let viewCount = parseInt(localStorage.getItem('pakar_view_count') || '0');
         viewCount++;
         localStorage.setItem('pakar_view_count', viewCount.toString());
+        
+        // Reload count for fraud detection
+        let reloadCount = parseInt(sessionStorage.getItem('pakar_reload_count') || '0');
+        reloadCount++;
+        sessionStorage.setItem('pakar_reload_count', reloadCount.toString());
+        
+        // Check for fraud (too many reloads)
+        if (reloadCount > 10) {
+            sendEvent('fraud_alert', {
+                reason: 'Too many reloads'
+            });
+        }
 
         // Track page view
-        gtag('event', 'page_view', {
-            page_title: 'AR Viewer',
-            page_location: window.location.href,
-            view_count: viewCount
-        });
+        gtag('event', 'page_view', getStandardParams());
+        
+        // Fire qr_scan event when page loads
+        sendEvent('qr_scan');
 
         // Device detection
         function detectDevice() {
@@ -128,8 +155,35 @@
                 isAndroid,
                 isMobile,
                 isDesktop: !isMobile,
-                userAgent: ua
+                userAgent: ua,
+                deviceType: isIOS ? 'iOS' : (isAndroid ? 'Android' : 'Other'),
+                browser: navigator.userAgent
             };
+        }
+
+        // Get standard parameters for all events
+        function getStandardParams() {
+            const device = detectDevice();
+            return {
+                client_id: CONFIG.clientId,
+                product_id: CONFIG.productId,
+                qr_id: CONFIG.qrId,
+                campaign: CONFIG.campaign,
+                location: CONFIG.location,
+                session_id: sessionId,
+                user_hash: userHash,
+                device_type: device.deviceType,
+                browser: device.browser,
+                timestamp: new Date().toISOString(),
+                view_count: viewCount
+            };
+        }
+
+        // Send custom event to GA4
+        function sendEvent(eventName, additionalParams = {}) {
+            const params = { ...getStandardParams(), ...additionalParams };
+            gtag('event', eventName, params);
+            console.log('GA4 Event:', eventName, params);
         }
 
         // Show error message
@@ -141,10 +195,9 @@
             errorText.textContent = message;
             errorDiv.style.display = 'block';
 
-            // Track error
-            gtag('event', 'ar_error', {
-                error_message: message,
-                view_count: viewCount
+            // Track error with ar_fallback event
+            sendEvent('ar_fallback', {
+                reason: message
             });
         }
 
@@ -152,8 +205,8 @@
         function launchAR() {
             const device = detectDevice();
 
-            // Track device info
-            gtag('event', 'device_detected', {
+            // Track device info with standard params
+            sendEvent('device_detected', {
                 is_ios: device.isIOS,
                 is_android: device.isAndroid,
                 is_desktop: device.isDesktop
@@ -178,6 +231,11 @@
                     a.appendChild(img);
                     document.body.appendChild(a);
                     
+                    // Fire ar_loaded event
+                    sendEvent('ar_loaded', {
+                        ar_method: method
+                    });
+                    
                     // Trigger click to open directly in AR
                     a.click();
                     
@@ -197,15 +255,21 @@
 
                 // Check if URL is configured
                 if (url.includes('YOUR_') || url === '') {
+                    sendEvent('ar_fallback', {
+                        reason: 'AR link not configured'
+                    });
                     showError('AR link not configured yet. Please contact support or check back later.');
                     return;
                 }
 
-                // Track launch
-                gtag('event', 'ar_launch', {
-                    method: method,
-                    session_duration: Date.now() - sessionStart,
-                    url: url
+                // Track launch and fire ar_loaded
+                sendEvent('ar_loaded', {
+                    ar_method: method
+                });
+                
+                // Fire scan_credit_used event
+                sendEvent('scan_credit_used', {
+                    count: 1
                 });
 
                 console.log('Launching AR with method:', method, 'URL:', url);
@@ -216,22 +280,29 @@
                 // If still on page after 2 seconds, show error
                 setTimeout(() => {
                     if (document.visibilityState === 'visible') {
+                        sendEvent('ar_fallback', {
+                            reason: 'Failed to redirect to AR'
+                        });
                         showError('Unable to launch AR experience. URL: ' + url.substring(0, 50) + '... Please check if the link is valid.');
                     }
                 }, 2000);
 
             } catch (error) {
                 console.error('Launch error:', error);
+                sendEvent('ar_fallback', {
+                    reason: 'Launch error: ' + error.message
+                });
                 showError('An error occurred while launching AR: ' + error.message);
             }
         }
 
         // Track session duration on page unload
         window.addEventListener('beforeunload', () => {
-            const duration = Math.round((Date.now() - sessionStart) / 1000);
-            gtag('event', 'session_end', {
-                session_duration_seconds: duration,
-                view_count: viewCount
+            const durationSeconds = Math.round((Date.now() - sessionStart) / 1000);
+            
+            // Fire ar_view_duration event
+            sendEvent('ar_view_duration', {
+                duration_seconds: durationSeconds
             });
         });
 
