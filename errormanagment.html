@@ -1,0 +1,522 @@
+import React, { useState } from 'react';
+import { Download, Search, AlertCircle, CheckCircle, Filter, FileText } from 'lucide-react';
+
+const ErrorCodeSystem = () => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('ALL');
+  const [selectedError, setSelectedError] = useState(null);
+
+  // Complete error code database - ALL 39 ERRORS
+  const errorCodes = [
+    // CONFIGURATION ERRORS (E1XX)
+    { code: 'E101', name: 'Missing iOS Model URL', category: 'Configuration', severity: 'Critical', gaEvent: 'ar_fallback', reason: 'AR link not configured',
+      causes: ['CONFIG.iosModelUrl not set', 'Placeholder text not replaced', 'Copy-paste error'],
+      symptoms: ['iOS users see error message', 'GA4: ar_fallback fires'],
+      solutions: ['Set CONFIG.iosModelUrl = "https://your-domain.com/model.usdz"', 'Verify file exists at URL', 'Test in Safari'], 
+      prevention: ['Add URL validation in deployment', 'Create config checklist'] },
+    
+    { code: 'E102', name: 'Missing Web AR Fallback URL', category: 'Configuration', severity: 'Critical', gaEvent: 'ar_fallback', reason: 'AR link not configured',
+      causes: ['CONFIG.webArFallbackUrl empty', 'MyWebAR project not set'],
+      symptoms: ['Android/Desktop users blocked', 'Error message displayed'],
+      solutions: ['Set CONFIG.webArFallbackUrl = "https://mywebar.com/p/project_id"', 'Verify MyWebAR project is published'],
+      prevention: ['Maintain backup URLs', 'Document project credentials'] },
+    
+    { code: 'E103', name: 'Invalid File Format', category: 'Configuration', severity: 'High', gaEvent: 'None (silent)', reason: 'QuickLook fails',
+      causes: ['URL points to .glb/.obj instead of .usdz', 'File renamed but URL not updated'],
+      symptoms: ['AR launches but shows blank screen', 'No error to user'],
+      solutions: ['Convert to USDZ using Reality Converter (macOS)', 'Use online converter', 'Verify .usdz extension'],
+      prevention: ['Standardize naming convention', 'Add file type validation'] },
+
+    // NETWORK ERRORS (E2XX)
+    { code: 'E201', name: 'Network Timeout / Offline', category: 'Network', severity: 'High', gaEvent: 'None', reason: 'No connection',
+      causes: ['User offline', 'Weak cellular signal', 'WiFi connected but no internet'],
+      symptoms: ['Page fails to load', 'Perpetual spinner', 'No GA4 events'],
+      solutions: ['Add offline detection', 'Show network status indicator', 'Implement service worker'],
+      prevention: ['Cache critical assets', 'Add connection check on load'] },
+    
+    { code: 'E202', name: 'CORS Policy Violation', category: 'Network', severity: 'Critical', gaEvent: 'ar_fallback', reason: 'CORS blocked',
+      causes: ['Server lacks CORS headers', 'GitHub Pages CORS not configured'],
+      symptoms: ['Console: "blocked by CORS policy"', 'Model fails to load'],
+      solutions: ['Add header: Access-Control-Allow-Origin: *', 'Use GitHub Pages or CDN with CORS', 'For Apache: add .htaccess rule'],
+      prevention: ['Test CORS in dev tools Network tab', 'Use CORS-enabled hosting'] },
+    
+    { code: 'E203', name: '404 - Model File Not Found', category: 'Network', severity: 'Critical', gaEvent: 'ar_fallback', reason: 'File not found',
+      causes: ['File deleted from server', 'URL path typo', 'GitHub repo set to private'],
+      symptoms: ['HTTP 404 in network logs', 'AR fails to load'],
+      solutions: ['Verify file exists at exact path', 'Check GitHub Pages deployment', 'Ensure repo is public', 'Re-upload file'],
+      prevention: ['Implement URL health checks', 'Set up broken link alerts', 'Keep backup copies'] },
+    
+    { code: 'E204', name: 'CDN/Hosting Service Down', category: 'Network', severity: 'High', gaEvent: 'ar_fallback', reason: 'Service unavailable',
+      causes: ['GitHub Pages outage', 'MyWebAR service down', 'DNS failure'],
+      symptoms: ['Multiple users fail simultaneously', 'Timeout errors'],
+      solutions: ['Check https://www.githubstatus.com/', 'Wait for restoration', 'Switch to backup hosting'],
+      prevention: ['Set up multi-CDN redundancy', 'Monitor with UptimeRobot', 'Maintain backup providers'] },
+    
+    { code: 'E205', name: 'Slow Network / Partial Load', category: 'Network', severity: 'Medium', gaEvent: 'ar_view_duration (low)', reason: 'Slow connection',
+      causes: ['Large file (>50MB) on slow network', '2G/3G connection', 'Server throttling'],
+      symptoms: ['Extended loading time', 'User abandonment', 'Low duration values'],
+      solutions: ['Optimize model (compress textures)', 'Add loading progress bar', 'Use quality tiers (low/medium/high)'],
+      prevention: ['Keep models under 10MB', 'Use global CDN', 'Test on throttled 3G'] },
+
+    // DEVICE/BROWSER COMPATIBILITY (E3XX)
+    { code: 'E301', name: 'iOS Version Too Old', category: 'Device/Browser', severity: 'Medium', gaEvent: 'ar_supported fires but fails', reason: 'iOS < 12',
+      causes: ['Device running iOS 11 or lower', 'ARKit not available'],
+      symptoms: ['ar_supported event fires but AR doesn\'t launch', 'Silent failure'],
+      solutions: ['Add iOS version detection', 'Show "Please update to iOS 12+"', 'Redirect to Web AR fallback'],
+      prevention: ['Add version check before QuickLook', 'Document minimum iOS 12', 'Test on older devices'] },
+    
+    { code: 'E302', name: 'Android Browser Lacks WebXR', category: 'Device/Browser', severity: 'Medium', gaEvent: 'fallback_opened', reason: 'No WebXR support',
+      causes: ['Android < 7.0', 'Old browser', 'No ARCore support'],
+      symptoms: ['Web AR shows compatibility error', 'Message: "AR not supported"'],
+      solutions: ['MyWebAR handles automatically', 'Suggest updating Chrome', 'Offer 3D viewer mode'],
+      prevention: ['Document Android 7.0+ requirement', 'Add device detection', 'Provide 360° fallback'] },
+    
+    { code: 'E303', name: 'Desktop Popup Blocker', category: 'Device/Browser', severity: 'Low', gaEvent: 'ar_fallback', reason: 'Failed to redirect',
+      causes: ['Browser blocks redirect', 'Popup blocker active', 'Strict security'],
+      symptoms: ['Redirect doesn\'t happen', '2-second timeout triggers'],
+      solutions: ['Add "Please allow popups" message', 'Use click button instead of auto-redirect', 'Show browser-specific instructions'],
+      prevention: ['Replace auto-redirect with click-to-launch button', 'Test in incognito'] },
+    
+    { code: 'E304', name: 'Safari Private Browsing Mode', category: 'Device/Browser', severity: 'Medium', gaEvent: 'Script crash', reason: 'localStorage disabled',
+      causes: ['User in Private/Incognito mode', 'localStorage.setItem() throws error'],
+      symptoms: ['JavaScript errors', 'Tracking fails', 'Page may crash'],
+      solutions: ['Wrap localStorage in try-catch', 'Use in-memory fallback', 'Detect private mode', 'Show notice'],
+      prevention: ['Add storage availability check', 'Implement graceful degradation', 'Don\'t rely on storage for critical features'] },
+    
+    { code: 'E305', name: 'JavaScript Disabled', category: 'Device/Browser', severity: 'Critical', gaEvent: 'None', reason: 'JS disabled',
+      causes: ['User disabled JS manually', 'Corporate policy', 'Extension blocking'],
+      symptoms: ['Static page', 'Perpetual loading', 'No functionality'],
+      solutions: ['Add <noscript> warning', 'Provide enable JS instructions', 'No code fix possible'],
+      prevention: ['Add prominent <noscript> message', 'Test with JS disabled', 'Document requirements'] },
+    
+    { code: 'E306', name: 'WebGL Not Supported', category: 'Device/Browser', severity: 'Medium', gaEvent: 'Web AR viewer error', reason: 'No GPU/WebGL',
+      causes: ['Old GPU', 'WebGL disabled', 'Hardware acceleration off'],
+      symptoms: ['3D model won\'t render', 'Black screen in AR'],
+      solutions: ['Detect WebGL with canvas.getContext("webgl")', 'Show device limitation message', 'Offer static images'],
+      prevention: ['Add WebGL detection', 'Document system requirements', 'Test on low-end devices'] },
+
+    // GOOGLE ANALYTICS ERRORS (E4XX)
+    { code: 'E401', name: 'GA4 Script Blocked', category: 'Analytics', severity: 'Low', gaEvent: 'None', reason: 'Ad blocker',
+      causes: ['Ad blocker (uBlock, AdBlock)', 'Privacy browser (Brave)', 'Corporate firewall', 'DNS blocking'],
+      symptoms: ['No events in GA4', 'gtag undefined', 'Console error'],
+      solutions: ['Accept 10-30% will block', 'Add gtag existence check', 'Use server-side tracking backup'],
+      prevention: ['Wrap calls: if (typeof gtag === "function")', 'Don\'t break if GA4 blocked', 'Document coverage rate'] },
+    
+    { code: 'E402', name: 'Invalid GA4 Measurement ID', category: 'Analytics', severity: 'Medium', gaEvent: 'Wrong property', reason: 'Wrong ID',
+      causes: ['Wrong G-XXXXXX in config', 'Copy-paste error', 'Using old UA- ID', 'Account deleted'],
+      symptoms: ['Events don\'t appear in correct property', 'Data to wrong account'],
+      solutions: ['Go to GA4 Admin > Data Streams', 'Copy correct Measurement ID (G-)', 'Update gtag config', 'Use DebugView to verify'],
+      prevention: ['Document GA4 details in wiki', 'Use environment variables', 'Test with DebugView'] },
+    
+    { code: 'E403', name: 'Event Parameter Limits Exceeded', category: 'Analytics', severity: 'Low', gaEvent: 'Partial data', reason: 'Limits exceeded',
+      causes: ['Parameter >100 chars', '>25 custom parameters', 'Invalid characters', 'Reserved names'],
+      symptoms: ['Events appear but missing parameters', 'Data truncated'],
+      solutions: ['Shorten values (<100 chars)', 'Limit to 25 parameters', 'Use alphanumeric + underscore', 'Avoid reserved names'],
+      prevention: ['Validate lengths before sending', 'Document naming conventions', 'Test in DebugView'] },
+    
+    { code: 'E404', name: 'GA4 Network Request Failed', category: 'Analytics', severity: 'Low', gaEvent: 'Lost events', reason: 'Network failure',
+      causes: ['Network interruption', 'Tab closed too fast', 'App backgrounded', 'Google server issue'],
+      symptoms: ['Missing events (sporadic)', 'Random data loss'],
+      solutions: ['Accept 1-5% loss is normal', 'Already uses sendBeacon API', 'Don\'t rely on 100% capture'],
+      prevention: ['Monitor for unusual drops', 'Export critical events to server log'] },
+
+    // CACHE/STORAGE ERRORS (E5XX)
+    { code: 'E501', name: 'localStorage Quota Exceeded', category: 'Storage', severity: 'Low', gaEvent: 'Script crash', reason: 'Storage full',
+      causes: ['User localStorage full (5-10MB)', 'Other sites using storage', 'Old data not cleaned'],
+      symptoms: ['QuotaExceededError', 'Can\'t store user_hash', 'Script crash'],
+      solutions: ['Wrap setItem in try-catch', 'Clear old data', 'Use shorter keys', 'Fallback to sessionStorage'],
+      prevention: ['Always use try-catch on storage', 'Auto-cleanup old data', 'Monitor usage'] },
+    
+    { code: 'E502', name: 'sessionStorage Quota Exceeded', category: 'Storage', severity: 'Low', gaEvent: 'Tracking fails', reason: 'Session storage full',
+      causes: ['Many reloads', 'Other scripts using storage', 'Browser limit reached'],
+      symptoms: ['Reload count fails', 'Fraud detection broken', 'QuotaExceededError'],
+      solutions: ['Wrap in try-catch', 'Use in-memory fallback', 'Clear periodically', 'Reduce stored data'],
+      prevention: ['Use minimal sessionStorage', 'Add quota checks', 'Implement memory fallback'] },
+    
+    { code: 'E503', name: 'Cache API Not Supported', category: 'Storage', severity: 'Very Low', gaEvent: 'None', reason: 'Old browser',
+      causes: ['Browser pre-2016', 'Internet Explorer 11', 'Caches API unavailable'],
+      symptoms: ['Cache clearing skipped', 'Old version persists', 'No user impact'],
+      solutions: ['Already handled gracefully', 'No action needed', 'User sees cached version'],
+      prevention: ['Keep if ("caches" in window) check', 'Test on old browsers'] },
+    
+    { code: 'E504', name: 'Version Mismatch Infinite Loop', category: 'Storage', severity: 'Critical', gaEvent: 'Multiple qr_scan', reason: 'Version bug',
+      causes: ['Bug in version logic', 'CURRENT_VERSION not updating', 'localStorage corruption', 'Cache conflict'],
+      symptoms: ['Continuous reloads', 'Flickering screen', 'Page unusable'],
+      solutions: ['Clear cache and localStorage manually', 'Increment CURRENT_VERSION', 'Fix logic bug', 'Add max reload limit'],
+      prevention: ['Add reload limit (if reloadCount > 3)', 'Test version updates', 'Add logging'] },
+
+    // SECURITY/PERMISSION ERRORS (E6XX)
+    { code: 'E601', name: 'iOS AR Permissions Denied', category: 'Security', severity: 'Medium', gaEvent: 'AR loads but no view', reason: 'Permission denied',
+      causes: ['User denied camera', 'User denied AR', 'Parental controls', 'First-time use'],
+      symptoms: ['QuickLook shows permission dialog', 'AR doesn\'t activate'],
+      solutions: ['Show "Please allow camera" instruction', 'Guide to Settings > Safari > Camera', 'Explain why needed'],
+      prevention: ['Add permission explanation', 'Show AR preview', 'Build trust first'] },
+    
+    { code: 'E602', name: 'Content Security Policy Violation', category: 'Security', severity: 'High', gaEvent: 'Scripts blocked', reason: 'CSP blocking',
+      causes: ['Server strict CSP', 'Inline scripts blocked', 'GA4 not whitelisted', 'Corporate proxy'],
+      symptoms: ['Scripts blocked', 'Console: "Refused to load... CSP"', 'GA4 can\'t load'],
+      solutions: ['Add CSP: script-src \'self\' https://www.googletagmanager.com', 'Allow unsafe-inline (less secure)', 'Move to external .js'],
+      prevention: ['Test CSP in staging', 'Document required directives', 'Use external scripts'] },
+    
+    { code: 'E603', name: 'Mixed Content Blocking', category: 'Security', severity: 'High', gaEvent: 'Resources fail', reason: 'HTTP on HTTPS',
+      causes: ['HTTPS page loading HTTP', 'Model URL http://', 'Insecure resources'],
+      symptoms: ['Resources fail', 'Console: "blocked mixed content"', 'No lock icon'],
+      solutions: ['Change all URLs to https://', 'Update CONFIG to https://', 'Enable HTTPS on server'],
+      prevention: ['Use only HTTPS', 'Test with console open', 'Enforce HTTPS in dev'] },
+
+    // USER BEHAVIOR ERRORS (E7XX)
+    { code: 'E701', name: 'Fraud Alert - Excessive Reloads', category: 'User Behavior', severity: 'Low', gaEvent: 'fraud_alert', reason: 'Too many reloads',
+      causes: ['Spam clicking', 'Bot inflation', 'Loading issues', 'Developer testing'],
+      symptoms: ['fraud_alert fires', '>10 reloads in session', 'Suspicious pattern'],
+      solutions: ['Already tracked', 'Review analytics for bots', 'Consider CAPTCHA', 'Block IP if severe'],
+      prevention: ['Monitor fraud_alert frequency', 'Set up abuse alerts', 'Add server rate limiting'] },
+    
+    { code: 'E702', name: 'Back Button After Redirect', category: 'User Behavior', severity: 'Very Low', gaEvent: 'ar_fallback (false)', reason: 'User navigation',
+      causes: ['User hits back after AR', 'Doesn\'t want AR', 'Accidental back'],
+      symptoms: ['ar_fallback fires incorrectly', 'False error shown'],
+      solutions: ['Improve detection logic', 'Check document.referrer', 'Add: if (performance.navigation.type === 2)'],
+      prevention: ['Refine visibility check', 'Track navigation type', 'Consider removing 2s check'] },
+    
+    { code: 'E703', name: 'Multiple Tab Opens', category: 'User Behavior', severity: 'Very Low', gaEvent: 'Multiple qr_scan', reason: 'User behavior',
+      causes: ['Multiple scans', 'Multiple tabs', 'Link sharing', 'Tab syncing'],
+      symptoms: ['Multiple qr_scan events', 'Inflated metrics', 'Multiple sessions'],
+      solutions: ['Accept as normal', 'Use user_hash to deduplicate', 'Track unique vs sessions'],
+      prevention: ['Design queries to handle duplicates', 'Focus on unique users', 'Document inflation rate'] },
+
+    // RACE CONDITIONS & TIMING (E8XX)
+    { code: 'E801', name: 'GA4 Script Not Loaded in Time', category: 'Timing', severity: 'Low', gaEvent: 'Early events lost', reason: 'Script loading',
+      causes: ['Slow network', 'Events fire before gtag defined', 'Race condition'],
+      symptoms: ['Console: gtag not defined', 'qr_scan lost', 'Later events work'],
+      solutions: ['Add gtag ready check', 'Use dataLayer queue', 'Add retry with setTimeout', 'Wait for script load'],
+      prevention: ['Load GA4 in <head> with async', 'Queue events until ready', 'Test on throttled network'] },
+    
+    { code: 'E802', name: 'AR Launch Before DOM Ready', category: 'Timing', severity: 'Medium', gaEvent: 'Script crash', reason: 'DOM not ready',
+      causes: ['Script runs before HTML exists', 'querySelector null', 'Fast connection race'],
+      symptoms: ['Error: cannot read property of null', 'Elements not found', 'AR doesn\'t launch'],
+      solutions: ['Already mitigated: window.load event', 'Ensure DOMContentLoaded', 'Add null checks', 'Use defer on script'],
+      prevention: ['Keep load event listener', 'Add defensive null checks', 'Test with cache disabled'] },
+    
+    { code: 'E803', name: 'beforeunload Event Blocked', category: 'Timing', severity: 'Very Low', gaEvent: 'ar_view_duration missing', reason: 'Event blocked',
+      causes: ['Browser security', 'Tab closed quickly', 'No sendBeacon support', 'Unload interrupted'],
+      symptoms: ['Duration data incomplete', 'No user impact'],
+      solutions: ['Accept some loss', 'Use visibilitychange backup', 'Send intervals not just unload', 'Already uses sendBeacon'],
+      prevention: ['Add visibilitychange tracking', 'Send periodic heartbeats', 'Don\'t rely on beforeunload'] },
+
+    // MODEL FILE ERRORS (E9XX)
+    { code: 'E901', name: 'Corrupted USDZ File', category: 'Model Files', severity: 'High', gaEvent: 'QuickLook error', reason: 'File corrupt',
+      causes: ['Upload corruption', 'Incomplete download', 'Disk error', 'Invalid USDZ structure'],
+      symptoms: ['QuickLook error', 'iOS: "Unable to load"', 'AR crashes', 'Blank screen'],
+      solutions: ['Re-export from 3D software', 'Validate with Reality Converter', 'Re-upload file', 'Check hash integrity'],
+      prevention: ['Validate before upload', 'Use checksum verification', 'Keep backups', 'Test after each upload'] },
+    
+    { code: 'E902', name: 'Model File Too Large', category: 'Model Files', severity: 'Medium', gaEvent: 'Timeout/memory error', reason: 'File size',
+      causes: ['USDZ >100MB', 'Too many polygons', 'Uncompressed textures', 'High detail unnecessary'],
+      symptoms: ['Timeout', 'Memory error', 'Slow loading', 'App crash on old devices'],
+      solutions: ['Compress model (<10MB ideal)', 'Reduce polygon count', 'Optimize textures (2k max)', 'Use LOD (Level of Detail)'],
+      prevention: ['Set file size limits in workflow', 'Automate compression', 'Test on low-end devices'] },
+    
+    { code: 'E903', name: 'Unsupported Model Features', category: 'Model Files', severity: 'Medium', gaEvent: 'Partial render', reason: 'Feature incompatibility',
+      causes: ['Advanced USDZ features not in iOS version', 'Custom shaders', 'Unsupported animations'],
+      symptoms: ['Partial render', 'Visual glitches', 'Missing textures', 'Incorrect materials'],
+      solutions: ['Simplify model', 'Remove advanced features', 'Use standard materials', 'Test on target iOS version'],
+      prevention: ['Follow Apple USDZ guidelines', 'Test on oldest supported iOS', 'Use standard features only'] },
+
+    // EXTERNAL SERVICE ERRORS (E10XX)
+    { code: 'E1001', name: 'MyWebAR Service Down', category: 'External Services', severity: 'High', gaEvent: 'fallback_opened then fails', reason: 'Service down',
+      causes: ['mywebar.com unavailable', 'Server maintenance', 'DDoS attack', 'DNS issues'],
+      symptoms: ['Redirect to error page', 'Android/Desktop AR fails', 'MyWebAR error shown'],
+      solutions: ['Check MyWebAR status', 'Wait for restoration', 'Contact MyWebAR support', 'Switch to backup viewer'],
+      prevention: ['Monitor MyWebAR uptime', 'Have backup Web AR solution', 'Set up status page alerts'] },
+    
+    { code: 'E1002', name: 'MyWebAR Account Expired/Suspended', category: 'External Services', severity: 'Critical', gaEvent: 'Redirect to login', reason: 'Account issue',
+      causes: ['Billing failure', 'Subscription expired', 'ToS violation', 'Account suspended'],
+      symptoms: ['Redirect to login page', 'Account error message', 'AR completely broken for fallback'],
+      solutions: ['Check MyWebAR account status', 'Renew subscription', 'Update payment method', 'Contact support'],
+      prevention: ['Set up billing alerts', 'Auto-renewal on subscription', 'Monitor account health'] },
+    
+    { code: 'E1003', name: 'GitHub Pages Deployment Failure', category: 'External Services', severity: 'High', gaEvent: '404 error', reason: 'Deployment failed',
+      causes: ['File not deployed', 'Repo private', 'Pages disabled', 'Build failed'],
+      symptoms: ['404 or 403 error', 'iOS AR broken', 'Model not accessible'],
+      solutions: ['Check repo is public', 'Enable GitHub Pages', 'Re-deploy', 'Check Actions tab for errors'],
+      prevention: ['Automate deployment checks', 'Monitor Pages status', 'Use deployment webhooks'] },
+
+    // JAVASCRIPT ERRORS (E11XX)
+    { code: 'E1101', name: 'Uncaught Exception in launchAR()', category: 'JavaScript', severity: 'Medium', gaEvent: 'ar_fallback with error', reason: 'Unexpected error',
+      causes: ['Unexpected JS error', 'Null reference', 'Type error', 'API change'],
+      symptoms: ['ar_fallback: "Launch error: [message]"', 'Error message shown', 'AR won\'t launch'],
+      solutions: ['Check console for stack trace', 'Fix reported bug', 'Add defensive coding', 'Update error handling'],
+      prevention: ['Comprehensive error logging', 'Monitor error reports', 'Add null checks'] },
+    
+    { code: 'E1102', name: 'Browser Compatibility Issues', category: 'JavaScript', severity: 'High', gaEvent: 'Script crash', reason: 'Old browser',
+      causes: ['Browser lacks ES6', 'No arrow functions', 'No const/let', 'No template literals'],
+      symptoms: ['Script crashes', 'Blank page', 'Console syntax errors', 'No functionality'],
+      solutions: ['Transpile with Babel', 'Use ES5 syntax', 'Add polyfills', 'Show browser update message'],
+      prevention: ['Test on IE11, old Safari', 'Use Babel in build', 'Feature detection'] }
+  ];
+
+  const categories = ['ALL', 'Configuration', 'Network', 'Device/Browser', 'Analytics', 'Storage', 'Security', 'User Behavior', 'Timing', 'Model Files', 'External Services', 'JavaScript'];
+  
+  const filteredErrors = errorCodes.filter(error => {
+    const matchesSearch = error.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         error.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         error.category.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = categoryFilter === 'ALL' || error.category === categoryFilter;
+    return matchesSearch && matchesCategory;
+  });
+
+  const getSeverityColor = (severity) => {
+    const colors = {
+      'Critical': 'bg-red-100 text-red-800 border-red-300',
+      'High': 'bg-orange-100 text-orange-800 border-orange-300',
+      'Medium': 'bg-yellow-100 text-yellow-800 border-yellow-300',
+      'Low': 'bg-blue-100 text-blue-800 border-blue-300',
+      'Very Low': 'bg-gray-100 text-gray-800 border-gray-300'
+    };
+    return colors[severity] || colors['Low'];
+  };
+
+  const downloadCSV = () => {
+    let csv = 'Error Code,Error Name,Category,Severity,GA4 Event,Reason,Possible Causes,Symptoms,Solutions,Prevention\n';
+    
+    errorCodes.forEach(error => {
+      const row = [
+        error.code,
+        error.name,
+        error.category,
+        error.severity,
+        error.gaEvent,
+        error.reason,
+        '"' + error.causes.join('; ') + '"',
+        '"' + error.symptoms.join('; ') + '"',
+        '"' + error.solutions.join('; ') + '"',
+        '"' + error.prevention.join('; ') + '"'
+      ];
+      csv += row.join(',') + '\n';
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'PAK-AR_Error_Codes_Reference.csv';
+    a.click();
+  };
+
+  const stats = {
+    total: errorCodes.length,
+    critical: errorCodes.filter(e => e.severity === 'Critical').length,
+    high: errorCodes.filter(e => e.severity === 'High').length,
+    categories: [...new Set(errorCodes.map(e => e.category))].length
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50 p-4">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">PAK-AR Error Code Reference</h1>
+              <p className="text-gray-600 mt-1">Complete troubleshooting guide for AR experience errors</p>
+            </div>
+            <button
+              onClick={downloadCSV}
+              className="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-6 py-3 rounded-lg transition-colors"
+            >
+              <Download size={20} />
+              Download Excel/CSV
+            </button>
+          </div>
+
+          {/* Stats */}
+          <div className="grid grid-cols-4 gap-4 mt-6">
+            <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-4 rounded-lg">
+              <div className="text-2xl font-bold">{stats.total}</div>
+              <div className="text-sm opacity-90">Total Errors</div>
+            </div>
+            <div className="bg-gradient-to-br from-red-500 to-red-600 text-white p-4 rounded-lg">
+              <div className="text-2xl font-bold">{stats.critical}</div>
+              <div className="text-sm opacity-90">Critical</div>
+            </div>
+            <div className="bg-gradient-to-br from-orange-500 to-orange-600 text-white p-4 rounded-lg">
+              <div className="text-2xl font-bold">{stats.high}</div>
+              <div className="text-sm opacity-90">High Severity</div>
+            </div>
+            <div className="bg-gradient-to-br from-teal-500 to-teal-600 text-white p-4 rounded-lg">
+              <div className="text-2xl font-bold">{stats.categories}</div>
+              <div className="text-sm opacity-90">Categories</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Search and Filters */}
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+              <input
+                type="text"
+                placeholder="Search by code, name, or category..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+              />
+            </div>
+            <div className="relative">
+              <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+              <select
+                value={categoryFilter}
+                onChange={(e) => setCategoryFilter(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent appearance-none"
+              >
+                {categories.map(cat => (
+                  <option key={cat} value={cat}>{cat === 'ALL' ? 'All Categories' : cat}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="mt-4 text-sm text-gray-600">
+            Showing {filteredErrors.length} of {errorCodes.length} errors
+          </div>
+        </div>
+
+        {/* Error List */}
+        <div className="space-y-4">
+          {filteredErrors.map(error => (
+            <div key={error.code} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
+              <div 
+                className="p-6 cursor-pointer"
+                onClick={() => setSelectedError(selectedError === error.code ? null : error.code)}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <span className="text-2xl font-bold text-teal-600">{error.code}</span>
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getSeverityColor(error.severity)}`}>
+                        {error.severity}
+                      </span>
+                      <span className="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">
+                        {error.category}
+                      </span>
+                    </div>
+                    <h3 className="text-xl font-semibold text-gray-900 mb-2">{error.name}</h3>
+                    <div className="flex items-center gap-4 text-sm text-gray-600">
+                      <span className="flex items-center gap-1">
+                        <AlertCircle size={16} />
+                        GA4: {error.gaEvent}
+                      </span>
+                      <span>Reason: {error.reason}</span>
+                    </div>
+                  </div>
+                  <div className="ml-4">
+                    <div className={`transform transition-transform ${selectedError === error.code ? 'rotate-180' : ''}`}>
+                      ▼
+                    </div>
+                  </div>
+                </div>
+
+                {selectedError === error.code && (
+                  <div className="mt-6 pt-6 border-t border-gray-200 space-y-6">
+                    <div>
+                      <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                        <span className="text-red-500">⚠</span> Possible Causes
+                      </h4>
+                      <ul className="list-disc list-inside space-y-1 text-gray-700">
+                        {error.causes.map((cause, idx) => (
+                          <li key={idx}>{cause}</li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div>
+                      <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                        <span className="text-orange-500">🔍</span> Symptoms
+                      </h4>
+                      <ul className="list-disc list-inside space-y-1 text-gray-700">
+                        {error.symptoms.map((symptom, idx) => (
+                          <li key={idx}>{symptom}</li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div>
+                      <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                        <span className="text-green-500">✅</span> Solutions
+                      </h4>
+                      <ol className="list-decimal list-inside space-y-1 text-gray-700">
+                        {error.solutions.map((solution, idx) => (
+                          <li key={idx} className="ml-2">{solution}</li>
+                        ))}
+                      </ol>
+                    </div>
+
+                    <div>
+                      <h4 className="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                        <span className="text-blue-500">🛡</span> Prevention Measures
+                      </h4>
+                      <ul className="list-disc list-inside space-y-1 text-gray-700">
+                        {error.prevention.map((prevent, idx) => (
+                          <li key={idx}>{prevent}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {filteredErrors.length === 0 && (
+          <div className="bg-white rounded-xl shadow-lg p-12 text-center">
+            <AlertCircle size={48} className="mx-auto text-gray-400 mb-4" />
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">No errors found</h3>
+            <p className="text-gray-600">Try adjusting your search or filter criteria</p>
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className="mt-8 bg-teal-900 text-white rounded-xl shadow-lg p-6">
+          <h3 className="font-semibold mb-4">Quick Reference Guide</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+            <div>
+              <strong>Configuration (E1XX):</strong> Setup and URL issues
+            </div>
+            <div>
+              <strong>Network (E2XX):</strong> Connectivity and hosting problems
+            </div>
+            <div>
+              <strong>Device/Browser (E3XX):</strong> Compatibility issues
+            </div>
+            <div>
+              <strong>Analytics (E4XX):</strong> GA4 tracking errors
+            </div>
+            <div>
+              <strong>Storage (E5XX):</strong> localStorage/cache problems
+            </div>
+            <div>
+              <strong>Security (E6XX):</strong> Permissions and CSP
+            </div>
+            <div>
+              <strong>User Behavior (E7XX):</strong> User actions and fraud
+            </div>
+            <div>
+              <strong>Timing (E8XX):</strong> Race conditions
+            </div>
+            <div>
+              <strong>Model Files (E9XX):</strong> 3D model issues
+            </div>
+            <div>
+              <strong>External (E10XX):</strong> Third-party service failures
+            </div>
+            <div>
+              <strong>JavaScript (E11XX):</strong> Code execution errors
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ErrorCodeSystem;
