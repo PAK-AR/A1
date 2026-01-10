@@ -110,7 +110,182 @@
         const errorCodes = [
             { code: 'E101', name: 'Missing iOS Model URL', category: 'Configuration', severity: 'Critical', gaEvent: 'ar_fallback', reason: 'AR link not configured',
               causes: ['CONFIG.iosModelUrl not set', 'Placeholder text not replaced', 'Copy-paste error'],
-              symptoms: ['iOS users see error message', 'GA4: ar_fallback fires'],
+symptoms: ['Redirect to login page', 'Account error message', 'AR completely broken for fallback'],
+              solutions: ['Check MyWebAR account status', 'Renew subscription', 'Update payment method', 'Contact support'],
+              prevention: ['Set up billing alerts', 'Auto-renewal on subscription', 'Monitor account health'] },
+            
+            { code: 'E1003', name: 'GitHub Pages Deployment Failure', category: 'External Services', severity: 'High', gaEvent: '404 error', reason: 'Deployment failed',
+              causes: ['File not deployed', 'Repo private', 'Pages disabled', 'Build failed'],
+              symptoms: ['404 or 403 error', 'iOS AR broken', 'Model not accessible'],
+              solutions: ['Check repo is public', 'Enable GitHub Pages', 'Re-deploy', 'Check Actions tab for errors'],
+              prevention: ['Automate deployment checks', 'Monitor Pages status', 'Use deployment webhooks'] },
+
+            { code: 'E1101', name: 'Uncaught Exception in launchAR()', category: 'JavaScript', severity: 'Medium', gaEvent: 'ar_fallback with error', reason: 'Unexpected error',
+              causes: ['Unexpected JS error', 'Null reference', 'Type error', 'API change'],
+              symptoms: ['ar_fallback: "Launch error: [message]"', 'Error message shown', 'AR won\'t launch'],
+              solutions: ['Check console for stack trace', 'Fix reported bug', 'Add defensive coding', 'Update error handling'],
+              prevention: ['Comprehensive error logging', 'Monitor error reports', 'Add null checks'] },
+            
+            { code: 'E1102', name: 'Browser Compatibility Issues', category: 'JavaScript', severity: 'High', gaEvent: 'Script crash', reason: 'Old browser',
+              causes: ['Browser lacks ES6', 'No arrow functions', 'No const/let', 'No template literals'],
+              symptoms: ['Script crashes', 'Blank page', 'Console syntax errors', 'No functionality'],
+              solutions: ['Transpile with Babel', 'Use ES5 syntax', 'Add polyfills', 'Show browser update message'],
+              prevention: ['Test on IE11, old Safari', 'Use Babel in build', 'Feature detection'] }
+        ];
+
+        function getSeverityColor(severity) {
+            const colors = {
+                'Critical': 'bg-red-100 text-red-800 border-red-300',
+                'High': 'bg-orange-100 text-orange-800 border-orange-300',
+                'Medium': 'bg-yellow-100 text-yellow-800 border-yellow-300',
+                'Low': 'bg-blue-100 text-blue-800 border-blue-300',
+                'Very Low': 'bg-gray-100 text-gray-800 border-gray-300'
+            };
+            return colors[severity] || colors['Low'];
+        }
+
+        function toggleError(code) {
+            const details = document.getElementById('details-' + code);
+            const arrow = document.getElementById('arrow-' + code);
+            if (details.classList.contains('hidden')) {
+                details.classList.remove('hidden');
+                arrow.classList.add('rotate-180');
+            } else {
+                details.classList.add('hidden');
+                arrow.classList.remove('rotate-180');
+            }
+        }
+
+        function renderErrors(errors) {
+            const container = document.getElementById('errorList');
+            const noResults = document.getElementById('noResults');
+            
+            if (errors.length === 0) {
+                container.innerHTML = '';
+                noResults.classList.remove('hidden');
+                return;
+            }
+            
+            noResults.classList.add('hidden');
+            container.innerHTML = errors.map(error => `
+                <div class="error-card bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl">
+                    <div class="p-6 cursor-pointer" onclick="toggleError('${error.code}')">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <div class="flex flex-wrap items-center gap-3 mb-2">
+                                    <span class="text-2xl font-bold text-teal-600">${error.code}</span>
+                                    <span class="px-3 py-1 rounded-full text-xs font-semibold border ${getSeverityColor(error.severity)}">
+                                        ${error.severity}
+                                    </span>
+                                    <span class="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-700">
+                                        ${error.category}
+                                    </span>
+                                </div>
+                                <h3 class="text-xl font-semibold text-gray-900 mb-2">${error.name}</h3>
+                                <div class="flex flex-wrap items-center gap-4 text-sm text-gray-600">
+                                    <span class="flex items-center gap-1">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                                        GA4: ${error.gaEvent}
+                                    </span>
+                                    <span>Reason: ${error.reason}</span>
+                                </div>
+                            </div>
+                            <div class="ml-4">
+                                <div id="arrow-${error.code}" class="transform transition-transform">▼</div>
+                            </div>
+                        </div>
+
+                        <div id="details-${error.code}" class="hidden mt-6 pt-6 border-t border-gray-200 space-y-6">
+                            <div>
+                                <h4 class="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                                    <span class="text-red-500">⚠</span> Possible Causes
+                                </h4>
+                                <ul class="list-disc list-inside space-y-1 text-gray-700">
+                                    ${error.causes.map(cause => `<li>${cause}</li>`).join('')}
+                                </ul>
+                            </div>
+
+                            <div>
+                                <h4 class="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                                    <span class="text-orange-500">🔍</span> Symptoms
+                                </h4>
+                                <ul class="list-disc list-inside space-y-1 text-gray-700">
+                                    ${error.symptoms.map(symptom => `<li>${symptom}</li>`).join('')}
+                                </ul>
+                            </div>
+
+                            <div>
+                                <h4 class="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                                    <span class="text-green-500">✅</span> Solutions
+                                </h4>
+                                <ol class="list-decimal list-inside space-y-1 text-gray-700">
+                                    ${error.solutions.map(solution => `<li class="ml-2">${solution}</li>`).join('')}
+                                </ol>
+                            </div>
+
+                            <div>
+                                <h4 class="font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                                    <span class="text-blue-500">🛡</span> Prevention Measures
+                                </h4>
+                                <ul class="list-disc list-inside space-y-1 text-gray-700">
+                                    ${error.prevention.map(prevent => `<li>${prevent}</li>`).join('')}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function filterErrors() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const category = document.getElementById('categoryFilter').value;
+            
+            const filtered = errorCodes.filter(error => {
+                const matchesSearch = error.code.toLowerCase().includes(searchTerm) ||
+                                    error.name.toLowerCase().includes(searchTerm) ||
+                                    error.category.toLowerCase().includes(searchTerm);
+                const matchesCategory = category === 'ALL' || error.category === category;
+                return matchesSearch && matchesCategory;
+            });
+            
+            renderErrors(filtered);
+            document.getElementById('resultCount').textContent = `Showing ${filtered.length} of ${errorCodes.length} errors`;
+        }
+
+        function downloadCSV() {
+            let csv = 'Error Code,Error Name,Category,Severity,GA4 Event,Reason,Possible Causes,Symptoms,Solutions,Prevention\n';
+            
+            errorCodes.forEach(error => {
+                const row = [
+                    error.code,
+                    error.name,
+                    error.category,
+                    error.severity,
+                    error.gaEvent,
+                    error.reason,
+                    '"' + error.causes.join('; ') + '"',
+                    '"' + error.symptoms.join('; ') + '"',
+                    '"' + error.solutions.join('; ') + '"',
+                    '"' + error.prevention.join('; ') + '"'
+                ];
+                csv += row.join(',') + '\n';
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'PAK-AR_Error_Codes_Reference.csv';
+            a.click();
+            window.URL.revokeObjectURL(url);
+        }
+
+        // Initialize
+        renderErrors(errorCodes);
+    </script>
+</body>
+</html>: ['iOS users see error message', 'GA4: ar_fallback fires'],
               solutions: ['Set CONFIG.iosModelUrl = "https://your-domain.com/model.usdz"', 'Verify file exists at URL', 'Test in Safari'], 
               prevention: ['Add URL validation in deployment', 'Create config checklist'] },
             
