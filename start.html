@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AR Experience</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #029390 0%, #016b69 100%);
+      padding: 20px;
+    }
+    .container {
+      text-align: center;
+      background: white;
+      padding: 40px;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      max-width: 400px;
+      width: 100%;
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+      font-size: 28px;
+    }
+    p {
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+    .ar-button {
+      display: inline-block;
+      background: linear-gradient(135deg, #029390 0%, #016b69 100%);
+      color: white;
+      padding: 16px 40px;
+      border-radius: 50px;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 18px;
+      transition: transform 0.2s, box-shadow 0.2s;
+      cursor: pointer;
+      border: none;
+    }
+    .ar-button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 30px rgba(2, 147, 144, 0.4);
+    }
+    .ar-button:active {
+      transform: translateY(0);
+    }
+    .info {
+      margin-top: 20px;
+      padding: 15px;
+      background: #f5f5f5;
+      border-radius: 10px;
+      font-size: 12px;
+      color: #666;
+    }
+    .loading {
+      display: none;
+      margin-top: 20px;
+      color: #029390;
+      font-size: 14px;
+    }
+    .loading.active {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>View in AR</h1>
+    <p>Experience this product in your space using augmented reality</p>
+    <button class="ar-button" id="arButton">Launch AR</button>
+    <div class="loading" id="loading">Loading AR experience...</div>
+    <div class="info" id="deviceInfo"></div>
+  </div>
+
+  <!-- PAKAR Context Configuration -->
+  <script>
+    window.PAKAR_CONTEXT = {
+      client_id: "PAKAR_001",
+      product_id: "PROD_002",
+      qr_id: "QR_001",
+      industry: "bon fire",
+      placement_type: "table"
+    };
+  </script>
+
+  <!-- AR Model URLs Configuration -->
+  <script>
+    window.AR_CONFIG = {
+      usdzUrl: "https://pak-ar.github.io/A1/fishfinal.usdz",  // iOS AR QuickLook
+      glbUrl: "https://pak-ar.github.io/A1/fishfinal.glb",    // Android Scene Viewer
+      myWebARUrl: "https://mywebar.com/p/Project_2_soqi7kpa9dE"  // Fallback for non-AR devices
+    };
+  </script>
+
+  <!-- Google Analytics 4 Configuration -->
+  <script>
+    // Replace with your GA4 Measurement ID
+    window.GA4_MEASUREMENT_ID = "G-GYWP3B344B";
+  </script>
+
+  <!-- Google Analytics 4 -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id="></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', window.GA4_MEASUREMENT_ID);
+    
+    // Load GA4 script with measurement ID
+    const gaScript = document.querySelector('script[src*="googletagmanager.com"]');
+    if (gaScript && window.GA4_MEASUREMENT_ID) {
+      gaScript.src = `https://www.googletagmanager.com/gtag/js?id=${window.GA4_MEASUREMENT_ID}`;
+    }
+  </script>
+
+  <!-- Device and AR Capability Detection -->
+  <script>
+    function isARSupported() {
+      const ua = navigator.userAgent || "";
+      return /Android|iPhone|iPad/i.test(ua);
+    }
+
+    function getOS() {
+      const ua = navigator.userAgent || "";
+      if (/Android/i.test(ua)) return "Android";
+      if (/iPhone|iPad/i.test(ua)) return "iOS";
+      return "Other";
+    }
+
+    function isIOSARSupported() {
+      const ua = navigator.userAgent || "";
+      return /iPhone|iPad/i.test(ua) && 'RelativeOrientationSensor' in window;
+    }
+
+    function isAndroidARSupported() {
+      const ua = navigator.userAgent || "";
+      return /Android/i.test(ua);
+    }
+
+    function getDeviceInfo() {
+      const os = getOS();
+      const arSupported = isARSupported();
+      return {
+        os: os,
+        arSupported: arSupported,
+        userAgent: navigator.userAgent
+      };
+    }
+  </script>
+
+  <!-- Event 1: QR Scan Tracking (Page Load) -->
+  <script>
+    function sendQRScan() {
+      gtag('event', 'qr_scan', {
+        client_id: window.PAKAR_CONTEXT.client_id,
+        product_id: window.PAKAR_CONTEXT.product_id,
+        qr_id: window.PAKAR_CONTEXT.qr_id,
+        ar_supported: isARSupported(),
+        os: getOS(),
+        industry: window.PAKAR_CONTEXT.industry,
+        placement_type: window.PAKAR_CONTEXT.placement_type,
+        timestamp: new Date().toISOString()
+      });
+    }
+    // Fire QR scan event on page load
+    window.addEventListener('load', sendQRScan);
+  </script>
+
+  <!-- Event 2: AR Launch Attempt -->
+  <script>
+    function sendARLaunch(method) {
+      gtag('event', 'ar_launch', {
+        client_id: window.PAKAR_CONTEXT.client_id,
+        product_id: window.PAKAR_CONTEXT.product_id,
+        qr_id: window.PAKAR_CONTEXT.qr_id,
+        ar_supported: isARSupported(),
+        os: getOS(),
+        launch_method: method,
+        timestamp: new Date().toISOString()
+      });
+    }
+  </script>
+
+  <!-- Event 3: AR Exit and Time Tracking -->
+  <script>
+    let arStartTime = null;
+
+    function onARStart() {
+      arStartTime = Date.now();
+    }
+
+    function onARExit() {
+      if (!arStartTime) return;
+      const timeSpent = Math.round((Date.now() - arStartTime) / 1000);
+      gtag('event', 'ar_exit', {
+        client_id: window.PAKAR_CONTEXT.client_id,
+        product_id: window.PAKAR_CONTEXT.product_id,
+        qr_id: window.PAKAR_CONTEXT.qr_id,
+        time_in_ar_sec: timeSpent,
+        os: getOS(),
+        timestamp: new Date().toISOString()
+      });
+      arStartTime = null;
+    }
+
+    // Track when user returns to page (AR session ended)
+    document.addEventListener('visibilitychange', function() {
+      if (document.visibilityState === 'visible' && arStartTime) {
+        onARExit();
+      }
+    });
+
+    // Track page unload (user closes tab/browser)
+    window.addEventListener('beforeunload', onARExit);
+  </script>
+
+  <!-- AR Launch Logic -->
+  <script>
+    const arButton = document.getElementById('arButton');
+    const loading = document.getElementById('loading');
+    const deviceInfo = document.getElementById('deviceInfo');
+
+    function launchAR() {
+      const os = getOS();
+      const config = window.AR_CONFIG;
+      
+      loading.classList.add('active');
+      onARStart();
+
+      if (os === 'iOS') {
+        // iOS: Use AR Quick Look with USDZ
+        sendARLaunch('ios_quicklook');
+        const a = document.createElement('a');
+        a.rel = 'ar';
+        a.href = config.usdzUrl;
+        a.click();
+        
+        // Check if AR launched successfully
+        setTimeout(() => {
+          loading.classList.remove('active');
+          // If still on page after 2s, AR might have failed
+          if (document.visibilityState === 'visible') {
+            launchFallback('ios_failed');
+          }
+        }, 2000);
+        
+      } else if (os === 'Android') {
+        // Android: Try Scene Viewer with GLB
+        sendARLaunch('android_scene_viewer');
+        const intentUrl = `intent://arvr.google.com/scene-viewer/1.0?file=${encodeURIComponent(config.glbUrl)}&mode=ar_preferred#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;S.browser_fallback_url=${encodeURIComponent(config.myWebARUrl)};end;`;
+        
+        window.location.href = intentUrl;
+        
+        // Check if AR launched successfully
+        setTimeout(() => {
+          loading.classList.remove('active');
+          if (document.visibilityState === 'visible') {
+            launchFallback('android_failed');
+          }
+        }, 2000);
+        
+      } else {
+        // Non-AR device: Launch MyWebAR directly
+        sendARLaunch('mywebar_direct');
+        loading.classList.remove('active');
+        window.location.href = config.myWebARUrl;
+      }
+    }
+
+    function launchFallback(reason) {
+      gtag('event', 'ar_fallback', {
+        client_id: window.PAKAR_CONTEXT.client_id,
+        product_id: window.PAKAR_CONTEXT.product_id,
+        qr_id: window.PAKAR_CONTEXT.qr_id,
+        reason: reason,
+        os: getOS()
+      });
+      sendARLaunch('mywebar_fallback');
+      window.location.href = window.AR_CONFIG.myWebARUrl;
+    }
+
+    arButton.addEventListener('click', launchAR);
+
+    // Display device info
+    window.addEventListener('load', function() {
+      const info = getDeviceInfo();
+      deviceInfo.innerHTML = `
+        <strong>Device:</strong> ${info.os}<br>
+        <strong>AR Support:</strong> ${info.arSupported ? 'Yes' : 'No'}
+      `;
+    });
+  </script>
+</body>
+</html>
