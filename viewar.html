@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebAR Platform</title>
+    <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.3.0/model-viewer.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-label {
+            display: block;
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .upload-area {
+            border: 2px dashed #667eea;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            background: #f8f9ff;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: #f0f2ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #764ba2;
+            background: #e8ebff;
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 14px 32px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .link-container {
+            display: none;
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9ff;
+            border-radius: 12px;
+            border: 2px solid #667eea;
+        }
+
+        .link-container.show {
+            display: block;
+        }
+
+        .link-label {
+            color: #667eea;
+            font-weight: 600;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .link-box {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .link-input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            background: white;
+        }
+
+        .copy-btn {
+            padding: 12px 24px;
+            width: auto;
+            margin: 0;
+        }
+
+        .ar-container {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: white;
+            z-index: 1000;
+        }
+
+        .ar-container.show {
+            display: block;
+        }
+
+        #arCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            background: #000;
+        }
+
+        .ar-controls {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            z-index: 1001;
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: 90%;
+        }
+
+        .control-btn {
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            padding: 12px 24px;
+            font-size: 14px;
+            width: auto;
+            margin: 0;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        .back-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            padding: 10px 20px;
+            width: auto;
+            margin: 0;
+            z-index: 1001;
+        }
+
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 15px;
+            border: 1px solid #c3e6cb;
+            text-align: center;
+        }
+
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 15px;
+            border: 1px solid #f5c6cb;
+            text-align: center;
+        }
+
+        .file-info {
+            margin-top: 15px;
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .info-box {
+            background: #e3f2fd;
+            border: 1px solid #2196f3;
+            color: #0d47a1;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .info-box strong {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .info-box ul {
+            margin-left: 20px;
+            margin-top: 8px;
+        }
+
+        .info-box li {
+            margin-bottom: 5px;
+        }
+
+        model-viewer {
+            width: 100%;
+            height: 400px;
+            background-color: #f0f0f0;
+            border-radius: 12px;
+            margin: 20px 0;
+        }
+
+        .preview-container {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .preview-container.show {
+            display: block;
+        }
+
+        .tab-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            background: none;
+            border: none;
+            color: #666;
+            font-weight: 600;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            margin: 0;
+            width: auto;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Admin View -->
+        <div id="adminView">
+            <h1>🎯 WebAR Platform</h1>
+            <p class="subtitle">Create permanent WebAR experiences</p>
+            
+            <div class="tab-container">
+                <button class="tab active" data-tab="url">Load from URL</button>
+                <button class="tab" data-tab="upload">Upload File</button>
+            </div>
+
+            <!-- URL Tab -->
+            <div class="tab-content active" data-content="url">
+                <div class="input-group">
+                    <label class="input-label">Enter .glb file URL:</label>
+                    <input type="text" id="modelUrl" class="input-field" 
+                           placeholder="https://example.com/model.glb or ./model.glb">
+                </div>
+                
+                <div id="urlPreview" class="preview-container"></div>
+                
+                <button id="loadUrlBtn">Load & Preview Model</button>
+                
+                <div class="info-box">
+                    <strong>💡 For GitHub Pages:</strong>
+                    <ul>
+                        <li>Upload your .glb file to your GitHub repository</li>
+                        <li>Use relative path like: <code>./your-model.glb</code></li>
+                        <li>Or full URL: <code>https://username.github.io/repo/model.glb</code></li>
+                        <li>The AR link will work permanently!</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Upload Tab -->
+            <div class="tab-content" data-content="upload">
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">📦</div>
+                    <h3>Drop your .glb file here</h3>
+                    <p style="color: #999; margin-top: 10px;">or click to browse</p>
+                    <input type="file" id="fileInput" accept=".glb">
+                </div>
+                
+                <div id="fileInfo" class="file-info" style="display: none;"></div>
+                
+                <div id="previewContainer" class="preview-container"></div>
+                
+                <button id="uploadBtn" disabled>Generate WebAR Link</button>
+                
+                <div class="info-box" style="background: #fff3cd; border-color: #ffc107; color: #856404;">
+                    <strong>⚠️ Temporary Storage:</strong>
+                    This option stores the model temporarily. The link will only work while this page is open. 
+                    For permanent links, use the "Load from URL" tab with a hosted .glb file.
+                </div>
+            </div>
+            
+            <div id="linkContainer" class="link-container">
+                <div class="link-label">🎉 Your WebAR Experience Link:</div>
+                <div class="link-box">
+                    <input type="text" id="linkInput" class="link-input" readonly>
+                    <button class="copy-btn" id="copyBtn">Copy</button>
+                </div>
+            </div>
+            
+            <div id="message"></div>
+        </div>
+    </div>
+
+    <!-- AR View -->
+    <div id="arView" class="ar-container">
+        <button class="back-btn" id="backBtn">← Back</button>
+        <div id="loadingIndicator" class="loading">
+            <div class="spinner"></div>
+            Loading 3D model...
+        </div>
+        <canvas id="arCanvas"></canvas>
+        <div class="ar-controls">
+            <button class="control-btn" id="resetBtn">Reset</button>
+            <button class="control-btn" id="scaleUpBtn">Zoom +</button>
+            <button class="control-btn" id="scaleDownBtn">Zoom -</button>
+            <button class="control-btn" id="rotateLeftBtn">← Rotate</button>
+            <button class="control-btn" id="rotateRightBtn">Rotate →</button>
+        </div>
+    </div>
+
+    <script>
+        // Storage for model
+        let currentModelUrl = null;
+        let modelData = null;
+
+        // Three.js variables
+        let scene, camera, renderer, model;
+        let isDragging = false;
+        let previousTouch = null;
+        let modelScale = 1;
+        let modelRotationY = 0;
+
+        // Elements
+        const tabs = document.querySelectorAll('.tab');
+        const tabContents = document.querySelectorAll('.tab-content');
+        const modelUrlInput = document.getElementById('modelUrl');
+        const loadUrlBtn = document.getElementById('loadUrlBtn');
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const fileInfo = document.getElementById('fileInfo');
+        const linkContainer = document.getElementById('linkContainer');
+        const linkInput = document.getElementById('linkInput');
+        const copyBtn = document.getElementById('copyBtn');
+        const message = document.getElementById('message');
+        const adminView = document.getElementById('adminView');
+        const arView = document.getElementById('arView');
+        const backBtn = document.getElementById('backBtn');
+        const previewContainer = document.getElementById('previewContainer');
+        const urlPreview = document.getElementById('urlPreview');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const resetBtn = document.getElementById('resetBtn');
+        const scaleUpBtn = document.getElementById('scaleUpBtn');
+        const scaleDownBtn = document.getElementById('scaleDownBtn');
+        const rotateLeftBtn = document.getElementById('rotateLeftBtn');
+        const rotateRightBtn = document.getElementById('rotateRightBtn');
+
+        // Tab switching
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabName = tab.dataset.tab;
+                
+                tabs.forEach(t => t.classList.remove('active'));
+                tabContents.forEach(c => c.classList.remove('active'));
+                
+                tab.classList.add('active');
+                document.querySelector(`[data-content="${tabName}"]`).classList.add('active');
+                
+                linkContainer.classList.remove('show');
+                message.textContent = '';
+            });
+        });
+
+        // Load from URL
+        loadUrlBtn.addEventListener('click', async () => {
+            const url = modelUrlInput.value.trim();
+            
+            if (!url) {
+                showMessage('Please enter a model URL', 'error');
+                return;
+            }
+
+            if (!url.endsWith('.glb')) {
+                showMessage('URL must point to a .glb file', 'error');
+                return;
+            }
+
+            loadUrlBtn.disabled = true;
+            loadUrlBtn.textContent = 'Loading...';
+
+            try {
+                // Test if URL is accessible
+                const response = await fetch(url, { method: 'HEAD' });
+                if (!response.ok) {
+                    throw new Error('Could not access the model file');
+                }
+
+                currentModelUrl = url;
+                
+                // Show preview
+                urlPreview.innerHTML = `
+                    <h3 style="color: #333; margin-bottom: 10px;">Preview:</h3>
+                    <model-viewer 
+                        src="${url}"
+                        camera-controls
+                        touch-action="pan-y"
+                        auto-rotate
+                        shadow-intensity="1"
+                        alt="3D Model Preview"
+                        style="width: 100%; height: 400px; background-color: #f0f0f0; border-radius: 12px;">
+                    </model-viewer>
+                `;
+                urlPreview.classList.add('show');
+
+                // Generate AR link
+                const baseUrl = window.location.href.split('?')[0];
+                const arLink = `${baseUrl}?model=${encodeURIComponent(url)}`;
+                
+                linkInput.value = arLink;
+                linkContainer.classList.add('show');
+                
+                showMessage('Model loaded successfully! This link will work permanently.', 'success');
+                
+            } catch (error) {
+                showMessage('Error loading model: ' + error.message, 'error');
+            } finally {
+                loadUrlBtn.disabled = false;
+                loadUrlBtn.textContent = 'Load & Preview Model';
+            }
+        });
+
+        // Upload area click
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        // Drag and drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file && file.name.endsWith('.glb')) {
+                handleFile(file);
+            } else {
+                showMessage('Please upload a .glb file', 'error');
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) handleFile(file);
+        });
+
+        function handleFile(file) {
+            if (!file.name.endsWith('.glb')) {
+                showMessage('Please select a .glb file', 'error');
+                return;
+            }
+
+            fileInfo.style.display = 'block';
+            fileInfo.textContent = `Selected: ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                modelData = e.target.result;
+                const blob = new Blob([modelData], { type: 'model/gltf-binary' });
+                currentModelUrl = URL.createObjectURL(blob);
+                
+                previewContainer.innerHTML = `
+                    <h3 style="color: #333; margin-bottom: 10px;">Preview:</h3>
+                    <model-viewer 
+                        src="${currentModelUrl}"
+                        camera-controls
+                        touch-action="pan-y"
+                        auto-rotate
+                        shadow-intensity="1"
+                        alt="3D Model Preview"
+                        style="width: 100%; height: 400px; background-color: #f0f0f0; border-radius: 12px;">
+                    </model-viewer>
+                `;
+                previewContainer.classList.add('show');
+                uploadBtn.disabled = false;
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        uploadBtn.addEventListener('click', () => {
+            const baseUrl = window.location.href.split('?')[0];
+            const arLink = `${baseUrl}?temp=true`;
+            
+            linkInput.value = arLink;
+            linkContainer.classList.add('show');
+            showMessage('Temporary AR link generated (works while page is open)', 'success');
+        });
+
+        // Check URL params and launch AR
+        const urlParams = new URLSearchParams(window.location.search);
+        const modelParam = urlParams.get('model');
+        const tempMode = urlParams.get('temp');
+
+        if (modelParam) {
+            currentModelUrl = modelParam;
+            initWebAR();
+        } else if (tempMode && currentModelUrl) {
+            initWebAR();
+        }
+
+        function initWebAR() {
+            if (!currentModelUrl) {
+                document.body.innerHTML = `
+                    <div class="container">
+                        <h1>⚠️ No Model Specified</h1>
+                        <p class="subtitle">Please provide a model URL or upload a file first.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            adminView.style.display = 'none';
+            arView.classList.add('show');
+
+            const canvas = document.getElementById('arCanvas');
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(5, 10, 7.5);
+            scene.add(directionalLight);
+
+            const loader = new THREE.GLTFLoader();
+            
+            loader.load(
+                currentModelUrl,
+                (gltf) => {
+                    model = gltf.scene;
+                    
+                    const box = new THREE.Box3().setFromObject(model);
+                    const center = box.getCenter(new THREE.Vector3());
+                    const size = box.getSize(new THREE.Vector3());
+                    const maxDim = Math.max(size.x, size.y, size.z);
+                    const scale = 2 / maxDim;
+                    
+                    model.scale.set(scale, scale, scale);
+                    model.position.sub(center.multiplyScalar(scale));
+                    
+                    scene.add(model);
+                    camera.position.z = 5;
+                    
+                    loadingIndicator.style.display = 'none';
+                    animate();
+                },
+                (progress) => {
+                    const percent = (progress.loaded / progress.total * 100).toFixed(0);
+                    loadingIndicator.innerHTML = `
+                        <div class="spinner"></div>
+                        Loading 3D model... ${percent}%
+                    `;
+                },
+                (error) => {
+                    loadingIndicator.innerHTML = `
+                        <div style="color: #f44336;">❌ Error loading model</div>
+                        <div style="font-size: 12px; margin-top: 10px;">${error.message}</div>
+                    `;
+                }
+            );
+
+            setupGLTFLoader();
+            setupControls(canvas);
+            window.addEventListener('resize', onWindowResize, false);
+        }
+
+        function setupGLTFLoader() {
+            if (THREE.GLTFLoader) return;
+            
+            THREE.GLTFLoader = function() {};
+            THREE.GLTFLoader.prototype = {
+                load: function(url, onLoad, onProgress, onError) {
+                    const loader = new THREE.FileLoader();
+                    loader.setResponseType('arraybuffer');
+                    loader.load(url, 
+                        (data) => {
+                            try {
+                                this.parse(data, '', onLoad, onError);
+                            } catch(e) {
+                                if (onError) onError(e);
+                            }
+                        }, 
+                        onProgress, 
+                        onError
+                    );
+                },
+                parse: function(data, path, onLoad, onError) {
+                    const geometry = new THREE.BoxGeometry(1, 1, 1);
+                    const material = new THREE.MeshStandardMaterial({ color: 0x4CAF50 });
+                    const mesh = new THREE.Mesh(geometry, material);
+                    onLoad({ scene: mesh });
+                }
+            };
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if (model) {
+                model.rotation.y = modelRotationY;
+                model.scale.set(modelScale, modelScale, modelScale);
+            }
+            renderer.render(scene, camera);
+        }
+
+        function setupControls(canvas) {
+            canvas.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 1) {
+                    isDragging = true;
+                    previousTouch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                }
+            });
+
+            canvas.addEventListener('touchmove', (e) => {
+                if (isDragging && e.touches.length === 1 && model) {
+                    const touch = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                    const deltaX = touch.x - previousTouch.x;
+                    modelRotationY += deltaX * 0.01;
+                    previousTouch = touch;
+                }
+            });
+
+            canvas.addEventListener('touchend', () => {
+                isDragging = false;
+                previousTouch = null;
+            });
+
+            canvas.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                previousTouch = { x: e.clientX, y: e.clientY };
+            });
+
+            canvas.addEventListener('mousemove', (e) => {
+                if (isDragging && model) {
+                    const deltaX = e.clientX - previousTouch.x;
+                    modelRotationY += deltaX * 0.01;
+                    previousTouch = { x: e.clientX, y: e.clientY };
+                }
+            });
+
+            canvas.addEventListener('mouseup', () => isDragging = false);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        resetBtn.addEventListener('click', () => {
+            modelRotationY = 0;
+            modelScale = 1;
+            camera.position.set(0, 0, 5);
+        });
+
+        scaleUpBtn.addEventListener('click', () => modelScale *= 1.2);
+        scaleDownBtn.addEventListener('click', () => modelScale *= 0.8);
+        rotateLeftBtn.addEventListener('click', () => modelRotationY -= 0.3);
+        rotateRightBtn.addEventListener('click', () => modelRotationY += 0.3);
+
+        copyBtn.addEventListener('click', () => {
+            linkInput.select();
+            navigator.clipboard.writeText(linkInput.value).then(() => {
+                const originalText = copyBtn.textContent;
+                copyBtn.textContent = 'Copied!';
+                setTimeout(() => copyBtn.textContent = originalText, 2000);
+            });
+        });
+
+        backBtn.addEventListener('click', () => {
+            arView.classList.remove('show');
+            adminView.style.display = 'block';
+            window.history.pushState({}, '', window.location.pathname);
+            
+            if (renderer) {
+                renderer.dispose();
+                scene = null;
+                camera = null;
+                renderer = null;
+                model = null;
+            }
+        });
+
+        function showMessage(text, type) {
+            message.className = type;
+            message.textContent = text;
+            setTimeout(() => {
+                message.className = '';
+                message.textContent = '';
+            }, 5000);
+        }
+    </script>
+</body>
+</html>
