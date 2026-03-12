@@ -66,7 +66,8 @@
     .brand {
       font-family: 'Chakra Petch', monospace;
       font-weight: 700;
-      font-size: clamp(5rem, 15vw, 13rem);
+      font-size: 2.5em;
+      white-space: nowrap;
       letter-spacing: .06em;
       line-height: 1;
       color: var(--white);
@@ -74,15 +75,15 @@
       animation: up .7s .1s cubic-bezier(.22,1,.36,1) forwards;
     }
 
-    .brand .sep { color: rgba(245,247,250,.25); }
+    .brand .sep { color: var(--white); }
 
     .slogan {
       font-family: 'DM Sans', sans-serif;
       font-weight: 300;
-      font-size: clamp(.8rem, 3vw, 1.05rem);
+      font-size: 0.6em;
       letter-spacing: .22em;
       text-transform: uppercase;
-      color: rgba(245,247,250,.6);
+      color: rgba(245,247,250,.8);
       margin-top: clamp(.5rem, 1.5vh, .9rem);
       margin-bottom: clamp(3rem, 11vh, 5.5rem);
       opacity: 0;
@@ -116,10 +117,24 @@
       font-size: .62rem;
       letter-spacing: .2em;
       text-transform: uppercase;
-      color: rgba(245,247,250,.6);
+      color: rgba(245,247,250,.4);
     }
 
     /* session ended */
+    .ended-btn {
+      font-family: 'Chakra Petch', monospace;
+      font-weight: 700;
+      font-size: 0.55em;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--white);
+      background: var(--black);
+      border: 1px solid var(--black);
+      padding: .6rem 1.6rem;
+      cursor: default;
+      user-select: none;
+      align-self: center;
+    }
     .state-title {
       font-family: 'Chakra Petch', monospace;
       font-weight: 700;
@@ -131,7 +146,7 @@
 
     .state-msg {
       font-size: .82rem;
-      color: rgba(245,247,250,.6);
+      color: rgba(245,247,250,.5);
       max-width: 260px;
       line-height: 1.7;
     }
@@ -142,7 +157,7 @@
       font-size: .58rem;
       letter-spacing: .22em;
       text-transform: uppercase;
-      color: rgba(245,247,250,.3);
+      color: rgba(245,247,250,.2);
       opacity: 0;
       animation: up .7s .5s cubic-bezier(.22,1,.36,1) forwards;
     }
@@ -171,8 +186,7 @@
 
     <!-- Session ended state -->
     <div class="state" id="state-ended">
-      <p class="state-title">Session Ended</p>
-      <p class="state-msg">This AR experience is no longer available.</p>
+      <div class="ended-btn">Session Ended</div>
     </div>
 
     <p class="attr">Powered by PAK-AR</p>
