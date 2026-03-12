@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>PAK-AR</title>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@700&family=DM+Sans:wght@300&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --teal:  #029390;
+      --teal-d:#016e6c;
+      --black: #0A0A0A;
+      --white: #F5F7FA;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--black);
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 300;
+      overflow: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(2,147,144,.08) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(2,147,144,.08) 1px, transparent 1px);
+      background-size: 44px 44px;
+      pointer-events: none;
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        linear-gradient(to right,  var(--teal) 2px, transparent 2px) 0 0       / 52px 2px no-repeat,
+        linear-gradient(to bottom, var(--teal) 2px, transparent 2px) 0 0       / 2px 52px no-repeat,
+        linear-gradient(to left,   var(--teal) 2px, transparent 2px) 100% 0    / 52px 2px no-repeat,
+        linear-gradient(to bottom, var(--teal) 2px, transparent 2px) 100% 0    / 2px 52px no-repeat,
+        linear-gradient(to right,  var(--teal) 2px, transparent 2px) 0 100%    / 52px 2px no-repeat,
+        linear-gradient(to top,    var(--teal) 2px, transparent 2px) 0 100%    / 2px 52px no-repeat,
+        linear-gradient(to left,   var(--teal) 2px, transparent 2px) 100% 100% / 52px 2px no-repeat,
+        linear-gradient(to top,    var(--teal) 2px, transparent 2px) 100% 100% / 2px 52px no-repeat;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .page {
+      position: relative;
+      z-index: 1;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 5vh 8vw;
+    }
+
+    .brand {
+      font-family: 'Chakra Petch', monospace;
+      font-weight: 700;
+      font-size: clamp(5rem, 22vw, 13rem);
+      letter-spacing: .06em;
+      line-height: 1;
+      color: var(--teal);
+      opacity: 0;
+      animation: up .7s .1s cubic-bezier(.22,1,.36,1) forwards;
+    }
+
+    .brand .sep { color: rgba(2,147,144,.3); }
+
+    .slogan {
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 300;
+      font-size: clamp(.8rem, 3vw, 1.05rem);
+      letter-spacing: .22em;
+      text-transform: uppercase;
+      color: var(--white);
+      margin-bottom: clamp(3rem, 11vh, 5.5rem);
+      opacity: 0;
+      animation: up .7s .3s cubic-bezier(.22,1,.36,1) forwards;
+    }
+
+    /* shared state styles */
+    .state {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      opacity: 0;
+      animation: up .5s .1s cubic-bezier(.22,1,.36,1) forwards;
+    }
+
+    .state.visible { display: flex; }
+
+    /* spinner */
+    .spinner {
+      width: 38px;
+      height: 38px;
+      border: 3px solid rgba(245,247,250,.25);
+      border-top-color: var(--white);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    .state-label {
+      font-family: 'Chakra Petch', monospace;
+      font-size: .62rem;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      color: rgba(245,247,250,.6);
+    }
+
+    /* session ended */
+    .state-title {
+      font-family: 'Chakra Petch', monospace;
+      font-weight: 700;
+      font-size: 1rem;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--white);
+    }
+
+    .state-msg {
+      font-size: .82rem;
+      color: rgba(245,247,250,.6);
+      max-width: 260px;
+      line-height: 1.7;
+    }
+
+    .attr {
+      position: absolute;
+      bottom: max(env(safe-area-inset-bottom, 1.4rem), 1.4rem);
+      font-size: .58rem;
+      letter-spacing: .22em;
+      text-transform: uppercase;
+      color: rgba(245,247,250,.3);
+      opacity: 0;
+      animation: up .7s .5s cubic-bezier(.22,1,.36,1) forwards;
+    }
+
+    @keyframes up {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+
+    <div class="brand">PAK<span class="sep">-</span>AR</div>
+    <p class="slogan">See It Before You Buy It</p>
+
+    <!-- Loading state -->
+    <div class="state visible" id="state-loading">
+      <div class="spinner"></div>
+      <span class="state-label">Preparing AR experience</span>
+    </div>
+
+    <!-- Session ended state -->
+    <div class="state" id="state-ended">
+      <p class="state-title">Session Ended</p>
+      <p class="state-msg">This AR experience is no longer available.</p>
+    </div>
+
+    <p class="attr">Powered by PAK-AR</p>
+
+  </div>
+
+  <script>
+    // ── SET YOUR REDIRECT LINK HERE ───────────────────────────────────────────
+    const REDIRECT_URL = '';
+    // Leave empty to show "Session Ended":  const REDIRECT_URL = '';
+    // ─────────────────────────────────────────────────────────────────────────
+
+    function showEnded() {
+      document.getElementById('state-loading').classList.remove('visible');
+      document.getElementById('state-ended').classList.add('visible');
+    }
+
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        if (!REDIRECT_URL || REDIRECT_URL.trim() === '') {
+          showEnded();
+        } else {
+          window.location.href = REDIRECT_URL;
+        }
+      }, 600);
+    });
+  </script>
+</body>
+</html>
